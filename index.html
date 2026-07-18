@@ -1013,9 +1013,24 @@
     margin-bottom:0;
   }
 
+  /* ── エフェクト: 元素 軌道リング ── */
+  .el-craft-ring{
+    position:fixed;
+    border-radius:50%;
+    pointer-events:none;
+    z-index:9994;
+    width:68px;height:68px;
+    border:1.5px solid;
+    animation:elCraftRing 0.5s ease-out forwards;
+  }
+  @keyframes elCraftRing{
+    0%  {transform:translate(-50%,-50%) scale(0.05);opacity:1;}
+    100%{transform:translate(-50%,-50%) scale(2.2);opacity:0;}
+  }
+
   @media(prefers-reduced-motion:reduce){
     .gen-active-spin::before{animation:none!important;}
-    .float-ep,.unlock-ripple,.unlock-flash{animation:none!important;}
+    .float-ep,.unlock-ripple,.unlock-flash,.el-craft-ring{animation:none!important;}
   }
 </style>
 </head>
@@ -2640,7 +2655,11 @@
     render();
     save();
     const card = document.getElementById("elementCard" + i);
-    if(card) flashBox(card, "flash");
+    if(card){
+      flashBox(card, "flash");
+      const r = card.getBoundingClientRect();
+      spawnElementRings(r.left + r.width/2, r.top + r.height/2, elementTextColor(i));
+    }
   }
 
   function sellElement(i){
@@ -3157,7 +3176,11 @@
     render();
     save();
     const card = document.getElementById("moleculeCard" + j);
-    if(card) flashBox(card, "flash");
+    if(card){
+      flashBox(card, "flash");
+      const r = card.getBoundingClientRect();
+      spawnMoleculeSparkles(r.left + r.width/2, r.top + r.height/2, moleculeTextColor(j));
+    }
   }
 
   function moleculeCapExpandCost(j){
@@ -3302,7 +3325,11 @@
     render();
     save();
     const card = document.getElementById("substanceCard" + k);
-    if(card) flashBox(card, "flash");
+    if(card){
+      flashBox(card, "flash");
+      const r = card.getBoundingClientRect();
+      spawnSubstanceShards(r.left + r.width/2, r.top + r.height/2, substanceTextColor(k));
+    }
   }
 
   function substanceCapExpandCost(k){
@@ -4015,18 +4042,73 @@
   (function _pLoop(){
     _pCtx.clearRect(0,0,_pCanvas.width,_pCanvas.height);
     _particles = _particles.filter(function(p){
-      p.x+=p.vx; p.y+=p.vy; p.vy+=0.12; p.life-=p.decay;
-      if(p.life<=0) return false;
+      p.x += p.vx; p.y += p.vy;
+      p.vy += p.type === "sparkle" ? 0 : p.type === "shard" ? 0.18 : 0.12;
+      if(p.type === "shard") p.angle = (p.angle||0) + (p.angVel||0);
+      p.life -= p.decay;
+      if(p.life <= 0) return false;
       _pCtx.save();
-      _pCtx.globalAlpha = p.life*p.life;
-      _pCtx.shadowBlur = 8; _pCtx.shadowColor = p.color;
+      _pCtx.globalAlpha = p.life * p.life;
       _pCtx.fillStyle = p.color;
-      _pCtx.beginPath(); _pCtx.arc(p.x,p.y,p.r,0,Math.PI*2); _pCtx.fill();
+      _pCtx.shadowColor = p.color;
+      if(p.type === "sparkle"){
+        _pCtx.shadowBlur = 20;
+        _pCtx.beginPath(); _pCtx.arc(p.x,p.y,p.r*0.55,0,Math.PI*2); _pCtx.fill();
+        _pCtx.shadowBlur = 0;
+        _pCtx.fillRect(p.x-p.r*2.2, p.y-0.7, p.r*4.4, 1.4);
+        _pCtx.fillRect(p.x-0.7, p.y-p.r*2.2, 1.4, p.r*4.4);
+      } else if(p.type === "shard"){
+        _pCtx.shadowBlur = 6;
+        _pCtx.translate(p.x, p.y); _pCtx.rotate(p.angle||0);
+        _pCtx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      } else {
+        _pCtx.shadowBlur = 8;
+        _pCtx.beginPath(); _pCtx.arc(p.x,p.y,p.r,0,Math.PI*2); _pCtx.fill();
+      }
       _pCtx.restore();
       return true;
     });
     requestAnimationFrame(_pLoop);
   })();
+
+  // 元素クラフト: 軌道リング（CSS）
+  function spawnElementRings(x, y, color){
+    [0, 140].forEach(function(delay, idx){
+      setTimeout(function(){
+        const ring = document.createElement("div");
+        ring.className = "el-craft-ring";
+        ring.style.borderColor = color;
+        ring.style.left = x + "px";
+        ring.style.top  = y + "px";
+        if(idx === 1){ ring.style.animationDuration = "0.65s"; ring.style.width = ring.style.height = "90px"; }
+        document.body.appendChild(ring);
+        ring.addEventListener("animationend", function(){ ring.remove(); });
+      }, delay);
+    });
+  }
+
+  // 分子クラフト: 化学スパーク（Canvas）
+  function spawnMoleculeSparkles(x, y, color){
+    for(let i = 0; i < 8; i++){
+      const angle = (i/8)*Math.PI*2 + (Math.random()-0.5)*0.5;
+      const speed = 0.8 + Math.random()*1.6;
+      _particles.push({ x, y, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed,
+        life:1.0, decay:0.02+Math.random()*0.018, r:3.5+Math.random()*2, color, type:"sparkle" });
+    }
+  }
+
+  // 物質クラフト: 結晶破片（Canvas）
+  function spawnSubstanceShards(x, y, color){
+    for(let i = 0; i < 7; i++){
+      const angle = (i/7)*Math.PI*2 + (Math.random()-0.5)*0.6;
+      const speed = 1.5 + Math.random()*2.8;
+      _particles.push({ x, y, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed-0.5,
+        life:1.0, decay:0.011+Math.random()*0.014,
+        w:2.5+Math.random()*2, h:7+Math.random()*7,
+        angle:Math.random()*Math.PI, angVel:(Math.random()-0.5)*0.22,
+        color, type:"shard" });
+    }
+  }
 
   function spawnFloatEP(x, y, amount, color){
     const div = document.createElement("div");
