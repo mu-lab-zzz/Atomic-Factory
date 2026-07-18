@@ -988,33 +988,29 @@
   .gen-active-wrap .generator-card{border-color:transparent;border-radius:10px;margin-bottom:0;}
   .gen-border-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;}
   .gen-border-track{fill:none;stroke-width:1;}
-  .gen-border-dot{
-    fill:none;stroke-width:2.5;stroke-linecap:round;
-    stroke-dasharray:60 940;
-    animation:genBorderTravel linear infinite;
-  }
-  .gen-border-dot2{
-    fill:none;stroke-width:2;stroke-linecap:round;
-    stroke-dasharray:45 955;
-    animation:genBorderTravel linear infinite;
-    display:none;
-  }
-  @keyframes genBorderTravel{from{stroke-dashoffset:0;}to{stroke-dashoffset:-1000;}}
+  /* dot = 先頭の輝点、dot2 = 光跡（JS が dasharray/dashoffset を実寸で制御） */
+  .gen-border-dot{fill:none;stroke-width:2.5;stroke-linecap:round;}
+  .gen-border-dot2{fill:none;stroke-width:3;stroke-linecap:round;display:none;opacity:0.35;}
   /* coal: 石炭 — オレンジ炎 */
   .gen-coal-active    .gen-border-track{stroke:rgba(255,140,0,0.18);}
-  .gen-coal-active    .gen-border-dot{stroke:#FF8C00;filter:drop-shadow(0 0 4px #FF8C00);animation-duration:16s;}
+  .gen-coal-active    .gen-border-dot{stroke:#FF8C00;filter:drop-shadow(0 0 4px #FF8C00);}
+  .gen-coal-active    .gen-border-dot2{stroke:#FF8C00;}
   /* oil: 石油 — アンバー */
   .gen-oil-active     .gen-border-track{stroke:rgba(200,162,88,0.18);}
-  .gen-oil-active     .gen-border-dot{stroke:#C8A258;filter:drop-shadow(0 0 4px #C8A258);animation-duration:16s;}
+  .gen-oil-active     .gen-border-dot{stroke:#C8A258;filter:drop-shadow(0 0 4px #C8A258);}
+  .gen-oil-active     .gen-border-dot2{stroke:#C8A258;}
   /* solar: 太陽光 — 明黄色 */
   .gen-solar-active   .gen-border-track{stroke:rgba(255,229,102,0.18);}
-  .gen-solar-active   .gen-border-dot{stroke:#FFE566;filter:drop-shadow(0 0 5px rgba(255,229,102,0.85));animation-duration:16s;}
+  .gen-solar-active   .gen-border-dot{stroke:#FFE566;filter:drop-shadow(0 0 5px rgba(255,229,102,0.85));}
+  .gen-solar-active   .gen-border-dot2{stroke:#FFE566;}
   /* fission: 核分裂 — 放射グリーン */
   .gen-fission-active .gen-border-track{stroke:rgba(122,255,110,0.18);}
-  .gen-fission-active .gen-border-dot{stroke:#7AFF6E;filter:drop-shadow(0 0 5px #7AFF6E);animation-duration:16s;}
+  .gen-fission-active .gen-border-dot{stroke:#7AFF6E;filter:drop-shadow(0 0 5px #7AFF6E);}
+  .gen-fission-active .gen-border-dot2{stroke:#7AFF6E;}
   /* fusion: 核融合 — シアン */
   .gen-fusion-active  .gen-border-track{stroke:rgba(79,209,197,0.18);}
-  .gen-fusion-active  .gen-border-dot{stroke:#4FD1C5;filter:drop-shadow(0 0 6px #4FD1C5);animation-duration:16s;}
+  .gen-fusion-active  .gen-border-dot{stroke:#4FD1C5;filter:drop-shadow(0 0 6px #4FD1C5);}
+  .gen-fusion-active  .gen-border-dot2{stroke:#4FD1C5;}
 
   /* ── エフェクト: 元素 軌道リング ── */
   .el-craft-ring{
@@ -3093,9 +3089,9 @@
         ? dict.generator_no_fuel_label
         : dict.generator_fuel_label + ": " + generatorCostHtml(config.fuel) + (config.fuelAlt ? '<span class="recipe-plus">/</span>' + generatorCostHtml(config.fuelAlt) : "") + intervalLabel;
       const _bsvg = '<svg class="gen-border-svg" aria-hidden="true">'
-        + '<rect class="gen-border-track" x="1" y="1" rx="13" pathLength="1000" style="width:calc(100% - 2px);height:calc(100% - 2px)"></rect>'
-        + '<rect class="gen-border-dot"   x="1" y="1" rx="13" pathLength="1000" style="width:calc(100% - 2px);height:calc(100% - 2px)"></rect>'
-        + '<rect class="gen-border-dot2"  x="1" y="1" rx="13" pathLength="1000" style="width:calc(100% - 2px);height:calc(100% - 2px)"></rect>'
+        + '<rect class="gen-border-track" x="1" y="1" rx="13" style="width:calc(100% - 2px);height:calc(100% - 2px)"></rect>'
+        + '<rect class="gen-border-dot"   x="1" y="1" rx="13" style="width:calc(100% - 2px);height:calc(100% - 2px)"></rect>'
+        + '<rect class="gen-border-dot2"  x="1" y="1" rx="13" style="width:calc(100% - 2px);height:calc(100% - 2px)"></rect>'
         + '</svg>';
       const wrapOpen  = owned > 0 ? '<div class="gen-active-wrap gen-' + type + '-active">' + _bsvg : '';
       const wrapClose = owned > 0 ? '</div>' : '';
@@ -3119,6 +3115,7 @@
     el.generatorList.querySelectorAll(".generator-build-btn").forEach(function(btn){
       btn.addEventListener("click", function(){ buildGenerator(btn.getAttribute("data-gen-type")); });
     });
+    requestAnimationFrame(initGenBorderAnims);
   }
 
   function renderGeneratorBuffButton(btnEl, expiresAt){
@@ -4283,6 +4280,38 @@
     });
     requestAnimationFrame(_pLoop);
   })();
+
+  // ── 発電機枠 走査光アニメーション（JS 実寸制御） ──
+  var _genBorderAnims = [];
+  requestAnimationFrame(function _genBorderTick(now){
+    _genBorderAnims = _genBorderAnims.filter(function(a){ return a.el.isConnected; });
+    var frac = (now / 16000) % 1; // 16s で一周
+    _genBorderAnims.forEach(function(a){
+      var pos = frac * a.perim;
+      // 光跡は先頭より trailLen だけ後方から始まる
+      a.el.style.strokeDashoffset = (a.isTrail ? -pos + a.trailLen : -pos).toFixed(1) + 'px';
+    });
+    requestAnimationFrame(_genBorderTick);
+  });
+
+  function initGenBorderAnims(){
+    _genBorderAnims = _genBorderAnims.filter(function(a){ return a.el.isConnected; });
+    document.querySelectorAll('.gen-active-wrap').forEach(function(wrap){
+      var headEl = wrap.querySelector('.gen-border-dot');
+      if(!headEl || _genBorderAnims.some(function(a){ return a.el === headEl; })) return;
+      var perim = 2 * (wrap.offsetWidth + wrap.offsetHeight);
+      var headLen  = 10;
+      var trailLen = Math.round(perim * 0.15); // 周長の15%を光跡に
+      headEl.style.strokeDasharray = headLen + 'px ' + (perim * 4) + 'px';
+      _genBorderAnims.push({ el: headEl, perim: perim, isTrail: false, trailLen: 0 });
+      var trailEl = wrap.querySelector('.gen-border-dot2');
+      if(trailEl){
+        trailEl.style.strokeDasharray = trailLen + 'px ' + (perim * 4) + 'px';
+        trailEl.style.display = 'block';
+        _genBorderAnims.push({ el: trailEl, perim: perim, isTrail: true, trailLen: trailLen });
+      }
+    });
+  }
 
   // 元素クラフト: 軌道リング（CSS）
   function spawnElementRings(x, y, color){
