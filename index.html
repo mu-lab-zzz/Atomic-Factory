@@ -506,6 +506,55 @@
     border-color:rgba(140,80,255,0.30);
   }
   #solarOverlay .modal h2{ color:#B080FF; }
+  .solar-header-row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    margin-bottom:16px;
+  }
+  .solar-header-text{
+    flex:1;
+    min-width:0;
+  }
+  .solar-header-text h2{
+    margin-bottom:4px !important;
+  }
+  .solar-building-row{
+    border-bottom:none !important;
+    padding:0 !important;
+  }
+  .solar-lcd-frame{
+    position:relative;
+    flex-shrink:0;
+    width:90px;
+    height:90px;
+    border-radius:8px;
+    border:2px solid rgba(80,60,160,0.65);
+    background:#010212;
+    overflow:hidden;
+    box-shadow:
+      inset 0 0 14px rgba(0,0,0,0.95),
+      0 0 10px rgba(100,80,220,0.20),
+      inset 0 0 0 1px rgba(120,100,255,0.10);
+  }
+  #solarBodyCanvas{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    display:block;
+  }
+  .solar-lcd-overlay{
+    position:absolute;
+    inset:0;
+    background:repeating-linear-gradient(
+      0deg,
+      transparent 0px, transparent 2px,
+      rgba(0,0,0,0.10) 2px, rgba(0,0,0,0.10) 3px
+    );
+    pointer-events:none;
+    z-index:2;
+  }
   #settingsOverlay .modal{
     background-color:#141720;
     background-image:
@@ -1495,11 +1544,18 @@
 
 <div class="modal-overlay" id="solarOverlay">
   <div class="modal scrollable-modal">
-    <h2 data-i18n="solar_title">太陽系構築</h2>
-
-    <div class="power-status-row">
-      <span data-i18n="solar_building_label">現在建設中</span>
-      <span class="power-value display-font" id="bodyNameValue">-</span>
+    <div class="solar-header-row">
+      <div class="solar-header-text">
+        <h2 data-i18n="solar_title" style="margin-bottom:6px;">太陽系構築</h2>
+        <div class="power-status-row solar-building-row">
+          <span data-i18n="solar_building_label">現在建設中</span>
+          <span class="power-value display-font" id="bodyNameValue">-</span>
+        </div>
+      </div>
+      <div class="solar-lcd-frame">
+        <canvas id="solarBodyCanvas" width="90" height="90"></canvas>
+        <div class="solar-lcd-overlay"></div>
+      </div>
     </div>
 
     <div class="modal-section-title" data-i18n="solar_requirements_label">必要な物質</div>
@@ -2748,6 +2804,7 @@
     solarOverlay:document.getElementById("solarOverlay"),
     closeSolar:document.getElementById("closeSolar"),
     bodyNameValue:document.getElementById("bodyNameValue"),
+    solarBodyCanvas:document.getElementById("solarBodyCanvas"),
     bodyRequirementList:document.getElementById("bodyRequirementList"),
     transportSpeedValue:document.getElementById("transportSpeedValue"),
     transportSpeedBtn:document.getElementById("transportSpeedBtn"),
@@ -4118,6 +4175,7 @@
         state.buildMode = "galaxy";
         state.galaxyProgress = new Array(GALAXY_REQUIREMENTS.length).fill(0);
       }
+      drawSolarBodyPreview();
     } else {
       // 銀河生成モードで全要求を満たした場合（想定上ほぼ到達不可能な量にしてある）
       showUnlockToastText(dict.galaxy_complete_toast);
@@ -4310,6 +4368,224 @@
 
     const complete = requirements.every(function(input, idx){ return progress[idx] >= input.count; });
     if(complete) advanceToNextBody();
+  }
+
+  // ── 太陽系天体LCDプレビュー ──
+  function _sphGrad(g,cx,cy,r,c1,c2,c3){
+    var gd=g.createRadialGradient(cx-r*0.32,cy-r*0.32,r*0.04,cx+r*0.15,cy+r*0.1,r*1.35);
+    gd.addColorStop(0,c1); gd.addColorStop(0.45,c2); gd.addColorStop(1,c3);
+    g.save(); g.beginPath(); g.arc(cx,cy,r,0,Math.PI*2); g.clip();
+    g.fillStyle=gd; g.fillRect(cx-r,cy-r,r*2,r*2); g.restore();
+  }
+  function _shine(g,cx,cy,r){
+    var sh=g.createRadialGradient(cx-r*0.42,cy-r*0.38,0,cx-r*0.28,cy-r*0.22,r*0.55);
+    sh.addColorStop(0,'rgba(255,255,255,0.45)');
+    sh.addColorStop(0.5,'rgba(255,255,255,0.08)');
+    sh.addColorStop(1,'transparent');
+    g.save(); g.beginPath(); g.arc(cx,cy,r,0,Math.PI*2); g.clip();
+    g.fillStyle=sh; g.fillRect(cx-r,cy-r,r*2,r*2); g.restore();
+  }
+  function _drawSun(g,cx,cy){
+    var R=30;
+    var c1=g.createRadialGradient(cx,cy,R*0.8,cx,cy,R*2.2);
+    c1.addColorStop(0,'rgba(255,200,50,0.35)'); c1.addColorStop(0.5,'rgba(255,120,20,0.10)'); c1.addColorStop(1,'transparent');
+    g.fillStyle=c1; g.fillRect(0,0,cx*2,cy*2);
+    var c2=g.createRadialGradient(cx,cy,R*0.9,cx,cy,R*1.5);
+    c2.addColorStop(0,'rgba(255,220,100,0.5)'); c2.addColorStop(1,'transparent');
+    g.fillStyle=c2; g.fillRect(0,0,cx*2,cy*2);
+    _sphGrad(g,cx,cy,R,'#FFF8C0','#FFD020','#E05000');
+    g.save(); g.beginPath(); g.arc(cx,cy,R,0,Math.PI*2); g.clip();
+    g.globalAlpha=0.18;
+    [[cx-8,cy+5,7],[cx+7,cy-4,5],[cx-3,cy-9,6]].forEach(function(p){
+      var sg=g.createRadialGradient(p[0],p[1],0,p[0],p[1],p[2]);
+      sg.addColorStop(0,'rgba(255,255,200,1)'); sg.addColorStop(1,'transparent');
+      g.fillStyle=sg; g.fillRect(p[0]-p[2],p[1]-p[2],p[2]*2,p[2]*2);
+    });
+    g.globalAlpha=1; g.restore();
+  }
+  function _drawMercury(g,cx,cy,r){
+    _sphGrad(g,cx,cy,r,'#C0BAA8','#807060','#2A2620');
+    g.save(); g.beginPath(); g.arc(cx,cy,r,0,Math.PI*2); g.clip();
+    [[cx-8,cy-5,4],[cx+5,cy+7,3],[cx-3,cy+11,5],[cx+9,cy-3,3]].forEach(function(p){
+      var cg=g.createRadialGradient(p[0]-p[2]*0.3,p[1]-p[2]*0.3,0,p[0],p[1],p[2]);
+      cg.addColorStop(0,'rgba(80,75,65,0.3)'); cg.addColorStop(1,'rgba(20,18,14,0.5)');
+      g.beginPath(); g.arc(p[0],p[1],p[2],0,Math.PI*2);
+      g.fillStyle=cg; g.fill();
+      g.strokeStyle='rgba(40,38,32,0.5)'; g.lineWidth=0.7; g.stroke();
+    });
+    g.restore(); _shine(g,cx,cy,r);
+  }
+  function _drawVenus(g,cx,cy,r){
+    var h=g.createRadialGradient(cx,cy,r*0.85,cx,cy,r*1.3);
+    h.addColorStop(0,'rgba(255,230,140,0.35)'); h.addColorStop(1,'transparent');
+    g.fillStyle=h; g.fillRect(cx-r*2,cy-r*2,r*4,r*4);
+    _sphGrad(g,cx,cy,r,'#FEFAE0','#F5D870','#C89020');
+    g.save(); g.beginPath(); g.arc(cx,cy,r,0,Math.PI*2); g.clip();
+    g.globalAlpha=0.12;
+    [cy-10,cy,cy+10].forEach(function(y){
+      g.fillStyle='rgba(255,255,220,1)'; g.fillRect(cx-r,y-2,r*2,4);
+    });
+    g.globalAlpha=1; g.restore(); _shine(g,cx,cy,r);
+  }
+  function _drawEarth(g,cx,cy,r){
+    var h=g.createRadialGradient(cx,cy,r*0.9,cx,cy,r*1.2);
+    h.addColorStop(0,'rgba(80,140,255,0.25)'); h.addColorStop(1,'transparent');
+    g.fillStyle=h; g.fillRect(cx-r*2,cy-r*2,r*4,r*4);
+    _sphGrad(g,cx,cy,r,'#5090FF','#2050C0','#102060');
+    g.save(); g.beginPath(); g.arc(cx,cy,r,0,Math.PI*2); g.clip();
+    [[cx-6,cy+2,9,6,0.4],[cx+7,cy-5,7,5,0.5],[cx+5,cy+11,4,4,0.3]].forEach(function(p){
+      g.beginPath(); g.ellipse(p[0],p[1],p[2],p[3],p[4],0,Math.PI*2);
+      g.fillStyle='rgba(60,130,50,0.8)'; g.fill();
+    });
+    g.beginPath(); g.ellipse(cx,cy-r+4,5,4,0,0,Math.PI*2);
+    g.fillStyle='rgba(240,248,255,0.8)'; g.fill();
+    g.globalAlpha=0.35; g.fillStyle='rgba(255,255,255,1)';
+    [[cx-10,cy-2,8,2.5,0.2],[cx+5,cy+5,6,2,0.15]].forEach(function(p){
+      g.beginPath(); g.ellipse(p[0],p[1],p[2],p[3],p[4],0,Math.PI*2); g.fill();
+    });
+    g.globalAlpha=1; g.restore(); _shine(g,cx,cy,r);
+  }
+  function _drawMars(g,cx,cy,r){
+    var h=g.createRadialGradient(cx,cy,r*0.88,cx,cy,r*1.15);
+    h.addColorStop(0,'rgba(200,100,60,0.2)'); h.addColorStop(1,'transparent');
+    g.fillStyle=h; g.fillRect(cx-r*2,cy-r*2,r*4,r*4);
+    _sphGrad(g,cx,cy,r,'#E08050','#B04020','#501808');
+    g.save(); g.beginPath(); g.arc(cx,cy,r,0,Math.PI*2); g.clip();
+    g.globalAlpha=0.22; g.fillStyle='rgba(60,20,10,1)';
+    g.beginPath(); g.ellipse(cx+2,cy+3,r*0.75,3,0.15,0,Math.PI*2); g.fill();
+    g.globalAlpha=1;
+    g.beginPath(); g.ellipse(cx,cy-r+5,5,4,0,0,Math.PI*2);
+    g.fillStyle='rgba(240,240,220,0.9)'; g.fill();
+    g.restore(); _shine(g,cx,cy,r);
+  }
+  function _drawJupiter(g,cx,cy,r){
+    _sphGrad(g,cx,cy,r,'#E8D4A0','#C09050','#604010');
+    g.save(); g.beginPath(); g.arc(cx,cy,r,0,Math.PI*2); g.clip();
+    [[cy-r*0.78,4,'rgba(120,60,20,0.55)'],[cy-r*0.48,5,'rgba(210,160,100,0.5)'],
+     [cy-r*0.14,6,'rgba(140,80,30,0.5)'],[cy+r*0.20,5,'rgba(200,150,90,0.45)'],
+     [cy+r*0.52,4,'rgba(110,55,20,0.5)'],[cy+r*0.78,3,'rgba(190,140,80,0.35)']
+    ].forEach(function(b){ g.fillStyle=b[2]; g.fillRect(cx-r,b[0]-b[1]/2,r*2,b[1]); });
+    g.beginPath(); g.ellipse(cx+8,cy+6,7,5,-0.2,0,Math.PI*2);
+    g.fillStyle='rgba(200,80,40,0.55)'; g.fill();
+    g.beginPath(); g.ellipse(cx+8,cy+6,5,3.5,-0.2,0,Math.PI*2);
+    g.fillStyle='rgba(225,105,65,0.4)'; g.fill();
+    g.restore(); _shine(g,cx,cy,r);
+  }
+  function _drawSaturn(g,cx,cy){
+    var r=22, pi=Math.PI;
+    var rings=[{rx:29,ry:8,w:2.5,col:'rgba(220,195,130,0.5)'},{rx:35,ry:9.5,w:3.5,col:'rgba(200,170,105,0.45)'},{rx:40,ry:11,w:1.5,col:'rgba(185,158,90,0.3)'}];
+    // back arcs (top half of ring ellipse = behind planet)
+    rings.forEach(function(rb){
+      g.beginPath(); g.ellipse(cx,cy,rb.rx,rb.ry,0,-pi,0);
+      g.strokeStyle=rb.col; g.lineWidth=rb.w; g.stroke();
+    });
+    _sphGrad(g,cx,cy,r,'#E8D8B0','#C0A060','#605020');
+    g.save(); g.beginPath(); g.arc(cx,cy,r,0,pi*2); g.clip();
+    [[cy-r*0.4,4,'rgba(150,110,50,0.45)'],[cy,5,'rgba(140,100,40,0.4)'],[cy+r*0.45,3,'rgba(150,110,50,0.4)']].forEach(function(b){
+      g.fillStyle=b[2]; g.fillRect(cx-r,b[0]-b[1]/2,r*2,b[1]);
+    });
+    g.restore(); _shine(g,cx,cy,r);
+    // front arcs (bottom half)
+    rings.forEach(function(rb){
+      g.beginPath(); g.ellipse(cx,cy,rb.rx,rb.ry,0,0,pi);
+      g.strokeStyle=rb.col; g.lineWidth=rb.w; g.stroke();
+    });
+  }
+  function _drawUranus(g,cx,cy,r){
+    var h=g.createRadialGradient(cx,cy,r*0.88,cx,cy,r*1.18);
+    h.addColorStop(0,'rgba(100,210,200,0.2)'); h.addColorStop(1,'transparent');
+    g.fillStyle=h; g.fillRect(cx-r*2,cy-r*2,r*4,r*4);
+    _sphGrad(g,cx,cy,r,'#C0F0EC','#60C0BC','#205050');
+    g.save(); g.beginPath(); g.arc(cx,cy,r,0,Math.PI*2); g.clip();
+    g.globalAlpha=0.07;
+    [cy-8,cy+2,cy+12].forEach(function(y){
+      g.fillStyle='rgba(20,80,100,1)'; g.fillRect(cx-r,y-2,r*2,3);
+    });
+    g.globalAlpha=1; g.restore();
+    // vertical rings
+    g.save(); g.translate(cx,cy); g.rotate(-Math.PI/7);
+    [{rx:5,ry:r+9,c:'rgba(130,200,195,0.28)',w:1.4},{rx:4,ry:r+14,c:'rgba(120,190,185,0.18)',w:1.0},{rx:3.5,ry:r+19,c:'rgba(110,180,175,0.12)',w:0.8}].forEach(function(rb){
+      g.beginPath(); g.ellipse(0,0,rb.rx,rb.ry,0,0,Math.PI*2);
+      g.strokeStyle=rb.c; g.lineWidth=rb.w; g.stroke();
+    });
+    g.restore(); _shine(g,cx,cy,r);
+  }
+  function _drawNeptune(g,cx,cy,r){
+    var h=g.createRadialGradient(cx,cy,r*0.9,cx,cy,r*1.2);
+    h.addColorStop(0,'rgba(50,80,220,0.25)'); h.addColorStop(1,'transparent');
+    g.fillStyle=h; g.fillRect(cx-r*2,cy-r*2,r*4,r*4);
+    _sphGrad(g,cx,cy,r,'#4060FF','#1030C0','#080840');
+    g.save(); g.beginPath(); g.arc(cx,cy,r,0,Math.PI*2); g.clip();
+    g.globalAlpha=0.35; g.fillStyle='rgba(180,200,255,1)';
+    [[cx,cy-8,r*0.8,2.5,0.08],[cx-2,cy+10,r*0.65,2,0.15]].forEach(function(p){
+      g.beginPath(); g.ellipse(p[0],p[1],p[2],p[3],p[4],0,Math.PI*2); g.fill();
+    });
+    g.globalAlpha=0.35;
+    g.beginPath(); g.ellipse(cx-5,cy+5,7,5,0.3,0,Math.PI*2);
+    g.fillStyle='rgba(0,10,80,0.85)'; g.fill();
+    g.globalAlpha=1; g.restore(); _shine(g,cx,cy,r);
+  }
+  function _drawPluto(g,cx,cy,r){
+    _sphGrad(g,cx,cy,r,'#D0B898','#887060','#302420');
+    g.save(); g.beginPath(); g.arc(cx,cy,r,0,Math.PI*2); g.clip();
+    g.beginPath(); g.ellipse(cx+2,cy+4,7,9,0.3,0,Math.PI*2);
+    g.fillStyle='rgba(220,210,190,0.5)'; g.fill();
+    g.beginPath(); g.ellipse(cx-3,cy+2,5,6,-0.3,0,Math.PI*2);
+    g.fillStyle='rgba(218,208,186,0.45)'; g.fill();
+    g.restore(); _shine(g,cx,cy,r);
+  }
+  function _drawGalaxy(g,cx,cy,W,H){
+    var core=g.createRadialGradient(cx,cy,0,cx,cy,18);
+    core.addColorStop(0,'rgba(255,248,200,0.95)'); core.addColorStop(0.3,'rgba(255,220,140,0.6)');
+    core.addColorStop(0.7,'rgba(200,160,255,0.2)'); core.addColorStop(1,'transparent');
+    g.fillStyle=core; g.fillRect(0,0,W,H);
+    var glow=g.createRadialGradient(cx,cy,8,cx,cy,42);
+    glow.addColorStop(0,'rgba(180,140,255,0.15)'); glow.addColorStop(1,'transparent');
+    g.fillStyle=glow; g.fillRect(0,0,W,H);
+    g.save(); g.translate(cx,cy);
+    for(var arm=0;arm<4;arm++){
+      var off=arm*Math.PI/2;
+      for(var t=0.1;t<3.5;t+=0.05){
+        var angle=t*1.2+off, dist=t*10;
+        var bri=Math.max(0,0.5-t*0.12);
+        g.beginPath();
+        g.arc(Math.cos(angle)*dist, Math.sin(angle)*dist*0.58, Math.max(0.3,1.2-t*0.28),0,Math.PI*2);
+        g.fillStyle='rgba(200,180,255,'+bri.toFixed(2)+')'; g.fill();
+      }
+    }
+    g.restore();
+  }
+  function drawSolarBodyPreview(){
+    var cv=el.solarBodyCanvas;
+    if(!cv) return;
+    var g=cv.getContext('2d'), W=cv.width, H=cv.height, cx=W/2, cy=H/2;
+    g.clearRect(0,0,W,H);
+    // 宇宙背景
+    var bg=g.createRadialGradient(cx,cy,0,cx,cy,W*0.65);
+    bg.addColorStop(0,'#0C0E20'); bg.addColorStop(1,'#020210');
+    g.fillStyle=bg; g.fillRect(0,0,W,H);
+    // 背景の星
+    var sd=7; var rr=function(){ sd=(sd*1664525+1013904223)&0x7fffffff; return sd/0x7fffffff; };
+    for(var i=0;i<28;i++){
+      g.beginPath(); g.arc(rr()*W,rr()*H,rr()*0.7+0.15,0,Math.PI*2);
+      g.fillStyle='rgba(200,210,255,'+(rr()*0.45+0.15).toFixed(2)+')'; g.fill();
+    }
+    var isGalaxy=state.buildMode==="galaxy";
+    var idx=isGalaxy?-1:state.currentBodyIndex;
+    if(isGalaxy){ _drawGalaxy(g,cx,cy,W,H); return; }
+    switch(idx){
+      case 0: _drawSun(g,cx,cy); break;
+      case 1: _drawMercury(g,cx,cy,27); break;
+      case 2: _drawVenus(g,cx,cy,27); break;
+      case 3: _drawEarth(g,cx,cy,27); break;
+      case 4: _drawMars(g,cx,cy,27); break;
+      case 5: _drawJupiter(g,cx,cy,30); break;
+      case 6: _drawSaturn(g,cx,cy); break;
+      case 7: _drawUranus(g,cx,cy,23); break;
+      case 8: _drawNeptune(g,cx,cy,27); break;
+      case 9: _drawPluto(g,cx,cy,19); break;
+      default: _drawGalaxy(g,cx,cy,W,H); break;
+    }
   }
 
   function renderSolarSystem(){
@@ -5242,6 +5518,7 @@
 
   el.solarTabBtn.addEventListener("click", ()=>{
     el.solarOverlay.classList.add("open");
+    drawSolarBodyPreview();
   });
   el.closeSolar.addEventListener("click", ()=>{
     el.solarOverlay.classList.remove("open");
