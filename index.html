@@ -45,7 +45,9 @@
     flex-direction:column;
     position:relative;
     overflow:hidden;
+    z-index:1;
   }
+  #bgCanvas{position:fixed;inset:0;z-index:0;pointer-events:none;}
   header{
     display:flex;
     align-items:center;
@@ -1035,6 +1037,7 @@
 </style>
 </head>
 <body>
+<canvas id="bgCanvas"></canvas>
 <canvas id="particleCanvas"></canvas>
 <div id="app">
   <header>
@@ -1353,6 +1356,210 @@
     <div class="reward-ad-countdown-track"><div class="reward-ad-countdown-fill" id="rewardAdCountdownFill"></div></div>
   </div>
 </div>
+
+<!-- ═══ 背景ハニカムアニメーション ═══ -->
+<script>
+(function(){
+  const canvas = document.getElementById('bgCanvas');
+  const ctx    = canvas.getContext('2d');
+
+  const R  = 60;
+  const CW = R * 1.5;
+  const RH = R * Math.sqrt(3);
+
+  let hexVerts = [], hexEdges = [], hexAdj = [], hexCache = null;
+
+  function buildHexGraph(){
+    const W = canvas.width, H = canvas.height;
+    const vertMap = new Map();
+    hexVerts = []; hexEdges = []; hexAdj = [];
+    const edgeSet = new Set();
+    function vid(x, y){
+      const key = Math.round(x) + ',' + Math.round(y);
+      if(vertMap.has(key)) return vertMap.get(key);
+      const id = hexVerts.length;
+      hexVerts.push({x, y});
+      vertMap.set(key, id);
+      return id;
+    }
+    for(let col = -1; col < Math.ceil(W / CW) + 2; col++){
+      for(let row = -1; row < Math.ceil(H / RH) + 2; row++){
+        const cx = col * CW;
+        const cy = row * RH + (col % 2 === 0 ? 0 : RH / 2);
+        const vs = [];
+        for(let i = 0; i < 6; i++){
+          const a = i * Math.PI / 3;
+          vs.push(vid(cx + R * Math.cos(a), cy + R * Math.sin(a)));
+        }
+        for(let i = 0; i < 6; i++){
+          const a = vs[i], b = vs[(i + 1) % 6];
+          const key = Math.min(a, b) + '-' + Math.max(a, b);
+          if(!edgeSet.has(key)){ edgeSet.add(key); hexEdges.push({a, b}); }
+        }
+      }
+    }
+    hexAdj = hexVerts.map(() => []);
+    hexEdges.forEach((e, ei) => {
+      hexAdj[e.a].push({ei, other: e.b});
+      hexAdj[e.b].push({ei, other: e.a});
+    });
+  }
+
+  function buildHexCache(W, H){
+    const oc = document.createElement('canvas');
+    oc.width = W; oc.height = H;
+    const c2 = oc.getContext('2d');
+    c2.strokeStyle = 'rgba(79,209,197,0.09)';
+    c2.lineWidth = 0.65;
+    c2.beginPath();
+    for(let col = -1; col < Math.ceil(W / CW) + 2; col++){
+      for(let row = -1; row < Math.ceil(H / RH) + 2; row++){
+        const cx = col * CW;
+        const cy = row * RH + (col % 2 === 0 ? 0 : RH / 2);
+        for(let i = 0; i < 6; i++){
+          const a = i * Math.PI / 3;
+          if(i === 0) c2.moveTo(cx + R * Math.cos(a), cy + R * Math.sin(a));
+          else         c2.lineTo(cx + R * Math.cos(a), cy + R * Math.sin(a));
+        }
+        c2.closePath();
+      }
+    }
+    c2.stroke();
+    return oc;
+  }
+
+  const PULSE_COLORS = ['#2DA8FF','#FF2D4D','#F5F7FA'];
+  const pulses = [], rings = [];
+  const PULSE_COUNT = 12;
+  const TRAIL_LEN   = 60;
+
+  function spawnPulse(){
+    if(!hexEdges.length) return;
+    const ei = Math.floor(Math.random() * hexEdges.length);
+    pulses.push({
+      ei,
+      from : hexEdges[ei].a,
+      t    : Math.random(),
+      speed: 0.00125 + Math.random() * 0.00100,
+      color: PULSE_COLORS[Math.floor(Math.random() * PULSE_COLORS.length)],
+      trail: [],
+    });
+  }
+
+  function initPulses(){ pulses.length = 0; for(let i = 0; i < PULSE_COUNT; i++) spawnPulse(); }
+
+  function spawnRing(x, y, color){
+    rings.push({x, y, r: 1.5, color, life: 1.0, speed: 0.038 + Math.random() * 0.022});
+  }
+
+  let scanY = -300, bgLast = 0;
+
+  function bgFrame(now){
+    const dt = Math.min(now - bgLast, 50); bgLast = now;
+    const W = canvas.width, H = canvas.height;
+    const breath = 0.65 + 0.35 * Math.sin(now * 0.00065);
+
+    // Dark background (canvas provides it so body bg stays hidden)
+    ctx.fillStyle = '#14171C';
+    ctx.fillRect(0, 0, W, H);
+
+    // Hex grid
+    if(!hexCache) hexCache = buildHexCache(W, H);
+    ctx.drawImage(hexCache, 0, 0);
+
+    // Scan beam
+    scanY += dt * 0.035;
+    if(scanY > H + 200) scanY = -200;
+    const sg = ctx.createLinearGradient(0, scanY - 120, 0, scanY + 120);
+    sg.addColorStop(0,    'transparent');
+    sg.addColorStop(0.45, 'rgba(79,209,197,0.03)');
+    sg.addColorStop(0.5,  'rgba(79,209,197,0.055)');
+    sg.addColorStop(0.55, 'rgba(79,209,197,0.03)');
+    sg.addColorStop(1,    'transparent');
+    ctx.fillStyle = sg; ctx.fillRect(0, scanY - 120, W, 240);
+
+    // Pulses
+    for(let i = pulses.length - 1; i >= 0; i--){
+      const p = pulses[i];
+      const eC  = hexEdges[p.ei];
+      const vaC = hexVerts[eC.a], vbC = hexVerts[eC.b];
+      const dirC = p.from === eC.a ? p.t : 1 - p.t;
+      const curX = vaC.x + (vbC.x - vaC.x) * Math.min(dirC, 1);
+      const curY = vaC.y + (vbC.y - vaC.y) * Math.min(dirC, 1);
+      p.trail.push({x: curX, y: curY});
+      if(p.trail.length > TRAIL_LEN) p.trail.shift();
+
+      p.t += p.speed * dt;
+      if(p.t >= 1){
+        const e    = hexEdges[p.ei];
+        const dest = p.from === e.a ? e.b : e.a;
+        spawnRing(hexVerts[dest].x, hexVerts[dest].y, p.color);
+        const opts = hexAdj[dest].filter(x => x.ei !== p.ei);
+        if(!opts.length){ pulses.splice(i, 1); continue; }
+        const next = opts[Math.floor(Math.random() * opts.length)];
+        p.ei = next.ei; p.from = dest; p.t = 0;
+      }
+
+      if(p.trail.length > 1){
+        ctx.save();
+        ctx.shadowBlur = 10; ctx.shadowColor = p.color;
+        ctx.strokeStyle = p.color;
+        const n = p.trail.length;
+        for(let j = 1; j < n; j++){
+          const t0 = p.trail[j - 1], t1 = p.trail[j];
+          const frac = j / n;
+          ctx.globalAlpha = frac * frac * 0.9;
+          ctx.lineWidth   = 0.6 + frac * 1.8;
+          ctx.beginPath(); ctx.moveTo(t0.x, t0.y); ctx.lineTo(t1.x, t1.y); ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.shadowBlur = 14; ctx.shadowColor = p.color;
+      ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.95;
+      ctx.beginPath(); ctx.arc(curX, curY, 1.8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = p.color; ctx.globalAlpha = 0.8;
+      ctx.beginPath(); ctx.arc(curX, curY, 3.2, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    while(pulses.length < PULSE_COUNT) spawnPulse();
+
+    // Vertex rings
+    for(let i = rings.length - 1; i >= 0; i--){
+      const rng = rings[i];
+      rng.r    += dt * rng.speed;
+      rng.life -= dt * 0.0022;
+      if(rng.life <= 0){ rings.splice(i, 1); continue; }
+      ctx.save();
+      ctx.globalAlpha = rng.life * rng.life * 0.55 * breath;
+      ctx.strokeStyle = rng.color; ctx.lineWidth = 0.9;
+      ctx.shadowBlur = 7; ctx.shadowColor = rng.color;
+      ctx.beginPath(); ctx.arc(rng.x, rng.y, rng.r, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+
+    // Vignette
+    const vg = ctx.createRadialGradient(W/2, H/2, H*0.3, W/2, H/2, H*0.85);
+    vg.addColorStop(0, 'transparent');
+    vg.addColorStop(1, 'rgba(14,16,20,0.6)');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+
+    requestAnimationFrame(bgFrame);
+  }
+
+  function bgResize(){
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    hexCache = null;
+    buildHexGraph();
+    initPulses();
+  }
+  window.addEventListener('resize', bgResize);
+  bgResize();
+  requestAnimationFrame(bgFrame);
+})();
+</script>
 
 <script>
 (function(){
