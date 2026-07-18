@@ -1109,14 +1109,29 @@
     </div>
 
     <div class="warehouse-pane" id="warehousePaneElements" style="display:none;">
+      <div class="cap-row has-auto">
+        <span class="cap-name" data-i18n="tap_power_label">タップ力</span>
+        <span class="auto-producer-owned display-font" id="tapPowerLevelElement">×1</span>
+        <button class="auto-producer-btn display-font" id="tapPowerBtnElement"></button>
+      </div>
       <div class="cap-row-list" id="elementCapList"></div>
     </div>
 
     <div class="warehouse-pane" id="warehousePaneMolecules" style="display:none;">
+      <div class="cap-row has-auto">
+        <span class="cap-name" data-i18n="tap_power_label">タップ力</span>
+        <span class="auto-producer-owned display-font" id="tapPowerLevelMolecule">×1</span>
+        <button class="auto-producer-btn display-font" id="tapPowerBtnMolecule"></button>
+      </div>
       <div class="cap-row-list" id="moleculeCapList"></div>
     </div>
 
     <div class="warehouse-pane" id="warehousePaneSubstances" style="display:none;">
+      <div class="cap-row has-auto">
+        <span class="cap-name" data-i18n="tap_power_label">タップ力</span>
+        <span class="auto-producer-owned display-font" id="tapPowerLevelSubstance">×1</span>
+        <button class="auto-producer-btn display-font" id="tapPowerBtnSubstance"></button>
+      </div>
       <div class="cap-row-list" id="substanceCapList"></div>
     </div>
 
@@ -2072,6 +2087,7 @@
     windupDurationBuffExpiresAt:0,
     windupOutputBuffExpiresAt:0,
     tapPowerLevel:{ proton:0, electron:0, neutron:0 },
+    craftTapPowerLevel:{ element:0, molecule:0, substance:0 },
     elementsUnlockedCount:1,
     elementCounts:new Array(ELEMENT_TABLE.length).fill(0),
     generatorOwned:{ coal:0, oil:0, solar:0, fission:0, fusion:0 },
@@ -2207,6 +2223,12 @@
     tapPowerBtnProton:document.getElementById("tapPowerBtnProton"),
     tapPowerBtnElectron:document.getElementById("tapPowerBtnElectron"),
     tapPowerBtnNeutron:document.getElementById("tapPowerBtnNeutron"),
+    tapPowerLevelElement:document.getElementById("tapPowerLevelElement"),
+    tapPowerLevelMolecule:document.getElementById("tapPowerLevelMolecule"),
+    tapPowerLevelSubstance:document.getElementById("tapPowerLevelSubstance"),
+    tapPowerBtnElement:document.getElementById("tapPowerBtnElement"),
+    tapPowerBtnMolecule:document.getElementById("tapPowerBtnMolecule"),
+    tapPowerBtnSubstance:document.getElementById("tapPowerBtnSubstance"),
     elementCapList:document.getElementById("elementCapList")
   };
 
@@ -2302,6 +2324,9 @@
     renderTapPowerRow("proton", el.tapPowerLevelProton, el.tapPowerBtnProton);
     renderTapPowerRow("electron", el.tapPowerLevelElectron, el.tapPowerBtnElectron);
     renderTapPowerRow("neutron", el.tapPowerLevelNeutron, el.tapPowerBtnNeutron);
+    renderCraftTapPowerRow("element", el.tapPowerLevelElement, el.tapPowerBtnElement);
+    renderCraftTapPowerRow("molecule", el.tapPowerLevelMolecule, el.tapPowerBtnMolecule);
+    renderCraftTapPowerRow("substance", el.tapPowerLevelSubstance, el.tapPowerBtnSubstance);
 
     el.powerGenValue.textContent = state.powerGen + "MW";
     el.powerDemandValue.textContent = state.powerDemand + "MW";
@@ -2338,6 +2363,12 @@
     const bonus = state.tapPowerLevel[key] * TAP_POWER_STEP;
     levelEl.textContent = "+" + bonus.toFixed(1);
     btnEl.innerHTML = "+" + TAP_POWER_STEP.toFixed(1) + " (⚡" + tapPowerCost() + ")";
+  }
+
+  function renderCraftTapPowerRow(key, levelEl, btnEl){
+    const level = state.craftTapPowerLevel[key] || 0;
+    levelEl.textContent = "×" + (1 + level);
+    btnEl.innerHTML = "+1 (⚡" + TAP_POWER_COST + ")";
   }
 
   // ============ 元素合成グリッド ============
@@ -2488,10 +2519,17 @@
 
   function craftElement(i){
     if(state.elementCounts[i] >= state.elementCaps[i]) return; // 上限到達時は広告を出さない
-    if(!tryCraftOne(i)){
-      offerRewardAd("element", i, document.getElementById("elementCard" + i));
-      return;
+    const n = 1 + (state.craftTapPowerLevel.element || 0);
+    let crafted = 0;
+    for(let t = 0; t < n; t++){
+      if(state.elementCounts[i] >= state.elementCaps[i]) break;
+      if(!tryCraftOne(i)){
+        if(crafted === 0) offerRewardAd("element", i, document.getElementById("elementCard" + i));
+        break;
+      }
+      crafted++;
     }
+    if(crafted === 0) return;
     render();
     save();
     const card = document.getElementById("elementCard" + i);
@@ -2630,6 +2668,16 @@
       state.energy -= cost;
     }
     state.tapPowerLevel[key] += 1;
+    render();
+    save();
+  }
+
+  function buyCraftTapPower(key){
+    if(!debugMode){
+      if(state.energy < TAP_POWER_COST) return;
+      state.energy -= TAP_POWER_COST;
+    }
+    state.craftTapPowerLevel[key] += 1;
     render();
     save();
   }
@@ -2964,10 +3012,17 @@
 
   function craftMolecule(j){
     if(state.moleculeCounts[j] >= state.moleculeCaps[j]) return; // 上限到達時は広告を出さない
-    if(!tryCraftMolecule(j)){
-      offerRewardAd("molecule", j, document.getElementById("moleculeCard" + j));
-      return;
+    const n = 1 + (state.craftTapPowerLevel.molecule || 0);
+    let crafted = 0;
+    for(let t = 0; t < n; t++){
+      if(state.moleculeCounts[j] >= state.moleculeCaps[j]) break;
+      if(!tryCraftMolecule(j)){
+        if(crafted === 0) offerRewardAd("molecule", j, document.getElementById("moleculeCard" + j));
+        break;
+      }
+      crafted++;
     }
+    if(crafted === 0) return;
     render();
     save();
     const card = document.getElementById("moleculeCard" + j);
@@ -3101,10 +3156,17 @@
 
   function craftSubstance(k){
     if(state.substanceCounts[k] >= state.substanceCaps[k]) return; // 上限到達時は広告を出さない
-    if(!tryCraftSubstance(k)){
-      offerRewardAd("substance", k, document.getElementById("substanceCard" + k));
-      return;
+    const n = 1 + (state.craftTapPowerLevel.substance || 0);
+    let crafted = 0;
+    for(let t = 0; t < n; t++){
+      if(state.substanceCounts[k] >= state.substanceCaps[k]) break;
+      if(!tryCraftSubstance(k)){
+        if(crafted === 0) offerRewardAd("substance", k, document.getElementById("substanceCard" + k));
+        break;
+      }
+      crafted++;
     }
+    if(crafted === 0) return;
     render();
     save();
     const card = document.getElementById("substanceCard" + k);
@@ -3820,6 +3882,14 @@
         state.tapPowerLevel[key] = 0;
       }
     });
+    if(!state.craftTapPowerLevel || typeof state.craftTapPowerLevel !== "object"){
+      state.craftTapPowerLevel = { element:0, molecule:0, substance:0 };
+    }
+    ["element","molecule","substance"].forEach(function(key){
+      if(typeof state.craftTapPowerLevel[key] !== "number" || state.craftTapPowerLevel[key] < 0){
+        state.craftTapPowerLevel[key] = 0;
+      }
+    });
     if(!state.generatorTypeUnlocked || typeof state.generatorTypeUnlocked !== "object"){
       state.generatorTypeUnlocked = { coal:false, oil:false, solar:false, fission:false, fusion:false };
     }
@@ -4024,6 +4094,7 @@
       windupDurationBuffExpiresAt:state.windupDurationBuffExpiresAt,
       windupOutputBuffExpiresAt:state.windupOutputBuffExpiresAt,
       tapPowerLevel:{ proton:0, electron:0, neutron:0 },
+      craftTapPowerLevel:{ element:0, molecule:0, substance:0 },
       elementsUnlockedCount:1,
       elementCounts:new Array(ELEMENT_TABLE.length).fill(0),
       generatorOwned:{ coal:0, oil:0, solar:0, fission:0, fusion:0 },
@@ -4097,6 +4168,9 @@
   el.tapPowerBtnProton.addEventListener("click", ()=>buyTapPower("proton"));
   el.tapPowerBtnElectron.addEventListener("click", ()=>buyTapPower("electron"));
   el.tapPowerBtnNeutron.addEventListener("click", ()=>buyTapPower("neutron"));
+  el.tapPowerBtnElement.addEventListener("click", ()=>buyCraftTapPower("element"));
+  el.tapPowerBtnMolecule.addEventListener("click", ()=>buyCraftTapPower("molecule"));
+  el.tapPowerBtnSubstance.addEventListener("click", ()=>buyCraftTapPower("substance"));
 
   el.saveBtn.addEventListener("click", async ()=>{
     await save();
