@@ -4288,9 +4288,8 @@
     var frac = (now / 16000) % 1; // 16s で一周
     _genBorderAnims.forEach(function(a){
       var pos = frac * a.perim;
-      var off = a.isTrail ? -pos + a.trailLen : -pos;
-      if(off > 0) off -= a.perim; // 正値は末尾側に残像が出るので周長分戻す
-      a.el.style.strokeDashoffset = off.toFixed(1) + 'px';
+      // 光跡: dasharray の周期を perim に一致させると正値でも SVG が折り返してくれる
+      a.el.style.strokeDashoffset = (a.isTrail ? -pos + a.trailLen : -pos).toFixed(1) + 'px';
     });
     requestAnimationFrame(_genBorderTick);
   });
@@ -4307,7 +4306,7 @@
       _genBorderAnims.push({ el: headEl, perim: perim, isTrail: false, trailLen: 0 });
       var trailEl = wrap.querySelector('.gen-border-dot2');
       if(trailEl){
-        trailEl.style.strokeDasharray = trailLen + 'px ' + (perim * 4) + 'px';
+        trailEl.style.strokeDasharray = trailLen + 'px ' + (perim - trailLen) + 'px';
         trailEl.style.display = 'block';
         _genBorderAnims.push({ el: trailEl, perim: perim, isTrail: true, trailLen: trailLen });
       }
