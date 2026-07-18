@@ -1775,14 +1775,18 @@
     // Tier6: 特殊枠
     { formula:"XeF₂", ja:"二フッ化キセノン", en:"Xenon Difluoride", recipe:[["Xe",1],["F",2]], state:"solid" },
     { formula:"UO₂", ja:"二酸化ウラン", en:"Uranium Dioxide", recipe:[["U",1],["O",2]], state:"solid" },
-    { formula:"PuO₂", ja:"二酸化プルトニウム", en:"Plutonium Dioxide", recipe:[["Pu",1],["O",2]], state:"solid" }
+    { formula:"PuO₂", ja:"二酸化プルトニウム", en:"Plutonium Dioxide", recipe:[["Pu",1],["O",2]], state:"solid" },
+    // 核融合燃料（水素同位体）: "n" は中性子を表す
+    { formula:"D", ja:"重水素", en:"Deuterium", recipe:[["H",1],["n",1]], state:"fusion" },
+    { formula:"T", ja:"三重水素", en:"Tritium", recipe:[["H",1],["n",2]], state:"fusion" }
   ];
 
   const MOLECULE_TABLE = MOLECULE_TABLE_RAW.map(function(m){
     return {
       formula:m.formula, ja:m.ja, en:m.en, state:m.state,
       recipe:m.recipe.map(function(pair){
-        return { index:ELEMENT_SYMBOL_TO_INDEX[pair[0]], symbol:pair[0], count:pair[1] };
+        if(pair[0] === "n") return { kind:"neutron", count:pair[1] };
+        return { kind:"element", index:ELEMENT_SYMBOL_TO_INDEX[pair[0]], symbol:pair[0], count:pair[1] };
       })
     };
   });
@@ -1895,16 +1899,16 @@
     },
     oil:{
       nameKey:"gen_oil_name",
-      buildCost:costList([["Fe",15],["Cu",5]]),
+      buildCost:costList([["Fe",20],["Cu",10]]),
       fuel:costList([["燃料",1]], "substance"), // 物質の「燃料」を消費する
-      output:12,
+      output:15,
       fuelIntervalTicks:30
     },
     solar:{
       nameKey:"gen_solar_name",
       buildCost:costList([["Si",20],["Ag",5],["Al",10]]),
       fuel:[],
-      output:3,
+      output:8,
       fuelIntervalTicks:1
     },
     fission:{
@@ -1917,9 +1921,9 @@
     },
     fusion:{
       nameKey:"gen_fusion_name",
-      buildCost:costList([["W",20],["Nb",20],["Be",10]]),
-      fuel:costList([["H",1]]),
-      output:100,
+      buildCost:costList([["W",30],["Nb",30],["Be",15]]),
+      fuel:costList([["D",1],["T",1]], "molecule"),
+      output:70,
       fuelIntervalTicks:30
     }
   };
@@ -1951,7 +1955,8 @@
   const MOLECULE_CATEGORIES = {
     gas:["CO₂","NH₃","CH₄","O₂","N₂","H₂","HCl","CO"],
     liquid:["H₂O","H₂SO₄","C₈H₁₈","C₂H₆O"],
-    solid:["NaOH","NaCl","CaCO₃","SiO₂","Fe₂O₃","Al₂O₃","C₆H₁₂O₆","XeF₂","UO₂","PuO₂"]
+    solid:["NaOH","NaCl","CaCO₃","SiO₂","Fe₂O₃","Al₂O₃","C₆H₁₂O₆","XeF₂","UO₂","PuO₂"],
+    fusion:["D","T"]
   };
 
   // 研究ツリー: 「前段階で生成したものを納品する」ことで次の研究が解放され、
@@ -1973,7 +1978,7 @@
     { id:"gen_oil_theory", parentId:"gen_coal_theory", nameKey:"research_node_gen_oil", unlock:{type:"generatorType", key:"oil"}, toastKey:"unlock_toast_gen_oil", req:[["e","C",10],["e","H",10]] },
     { id:"gen_solar_theory", parentId:"gen_oil_theory", nameKey:"research_node_gen_solar", unlock:{type:"generatorType", key:"solar"}, toastKey:"unlock_toast_gen_solar", req:[["e","Si",15]] },
     { id:"gen_fission_theory", parentId:"gen_solar_theory", nameKey:"research_node_gen_fission", unlock:{type:"generatorType", key:"fission"}, toastKey:"unlock_toast_gen_fission", req:[["e","U",5]] },
-    { id:"gen_fusion_theory", parentId:"gen_fission_theory", nameKey:"research_node_gen_fusion", unlock:{type:"generatorType", key:"fusion"}, toastKey:"unlock_toast_gen_fusion", req:[["e","H",30]] },
+    { id:"gen_fusion_theory", parentId:"gen_fission_theory", nameKey:"research_node_gen_fusion", unlock:[{type:"generatorType", key:"fusion"},{type:"moleculeCategory", key:"fusion"}], toastKey:"unlock_toast_gen_fusion", req:[["e","H",20],["s","鋼鉄",10],["s","半導体",5]] },
 
     // 枝2: 分子・物質・太陽系チェーン
     { id:"molecular_theory", parentId:"synthesis_theory", nameKey:"research_node_molecular", unlock:{type:"flag", key:"moleculesUnlocked"}, toastKey:"unlock_toast_molecules", req:[["e","O",20],["e","H",20]] },
@@ -2087,7 +2092,7 @@
     substancesUnlocked:false,
     solarUnlocked:false,
     generatorTypeUnlocked:{ coal:false, oil:false, solar:false, fission:false, fusion:false },
-    moleculeCategoryUnlocked:{ gas:false, liquid:false, solid:false },
+    moleculeCategoryUnlocked:{ gas:false, liquid:false, solid:false, fusion:false },
     substanceItemUnlocked:new Array(SUBSTANCE_TABLE.length).fill(false),
     researchProgress:RESEARCH_NODES.map(function(n){ return new Array(n.requirements.length).fill(0); }),
     tutorialStepIndex:0,
@@ -2974,6 +2979,10 @@
   function buildMoleculeCostHtml(j){
     const recipe = MOLECULE_TABLE[j].recipe;
     const parts = recipe.map(function(input){
+      if(input.kind === "neutron"){
+        const label = "n" + (input.count > 1 ? "×" + input.count : "");
+        return '<span class="recipe-part c-n">' + label + '</span>';
+      }
       const label = input.symbol + (input.count > 1 ? "×" + input.count : "");
       return '<span class="recipe-part" style="color:' + elementTextColor(input.index) + '">' + label + '</span>';
     });
@@ -3021,10 +3030,18 @@
     const recipe = MOLECULE_TABLE[j].recipe;
     if(!debugMode){
       for(const input of recipe){
-        if(state.elementCounts[input.index] < input.count) return false;
+        if(input.kind === "neutron"){
+          if(state.neutrons < input.count) return false;
+        } else {
+          if(state.elementCounts[input.index] < input.count) return false;
+        }
       }
       for(const input of recipe){
-        state.elementCounts[input.index] -= input.count;
+        if(input.kind === "neutron"){
+          state.neutrons -= input.count;
+        } else {
+          state.elementCounts[input.index] -= input.count;
+        }
       }
     }
     state.moleculeCounts[j] += 1;
@@ -3106,6 +3123,7 @@
   // ============ 物質 ============
   function ingredientColor(input){
     if(input.kind === "element") return elementTextColor(input.index);
+    if(input.kind === "molecule") return moleculeTextColor(input.index);
     if(input.kind === "particle"){
       if(input.stateKey === "protons") return "var(--neon-red)";
       if(input.stateKey === "electrons") return "var(--neon-blue)";
@@ -3710,11 +3728,14 @@
   // ============ 研究ツリー ============
   function isResearchNodeUnlocked(nodeIndex){
     const node = RESEARCH_NODES[nodeIndex];
-    if(node.unlock.type === "flag") return !!state[node.unlock.key];
-    if(node.unlock.type === "generatorType") return !!state.generatorTypeUnlocked[node.unlock.key];
-    if(node.unlock.type === "moleculeCategory") return !!state.moleculeCategoryUnlocked[node.unlock.key];
-    if(node.unlock.type === "substanceItem") return !!state.substanceItemUnlocked[SUBSTANCE_NAME_TO_INDEX[node.unlock.key]];
-    return false;
+    const unlocks = Array.isArray(node.unlock) ? node.unlock : [node.unlock];
+    return unlocks.every(function(u){
+      if(u.type === "flag") return !!state[u.key];
+      if(u.type === "generatorType") return !!state.generatorTypeUnlocked[u.key];
+      if(u.type === "moleculeCategory") return !!state.moleculeCategoryUnlocked[u.key];
+      if(u.type === "substanceItem") return !!state.substanceItemUnlocked[SUBSTANCE_NAME_TO_INDEX[u.key]];
+      return false;
+    });
   }
 
   // 現在ツリー上に表示されている（＝親が解放済みの）未完了ノードの中に、
@@ -3761,16 +3782,20 @@
 
   function applyResearchNodeUnlock(nodeIndex){
     const node = RESEARCH_NODES[nodeIndex];
-    if(node.unlock.type === "flag") state[node.unlock.key] = true;
-    else if(node.unlock.type === "generatorType") state.generatorTypeUnlocked[node.unlock.key] = true;
-    else if(node.unlock.type === "moleculeCategory") state.moleculeCategoryUnlocked[node.unlock.key] = true;
-    else if(node.unlock.type === "substanceItem") state.substanceItemUnlocked[SUBSTANCE_NAME_TO_INDEX[node.unlock.key]] = true;
+    const unlocks = Array.isArray(node.unlock) ? node.unlock : [node.unlock];
+    unlocks.forEach(function(u){
+      if(u.type === "flag") state[u.key] = true;
+      else if(u.type === "generatorType") state.generatorTypeUnlocked[u.key] = true;
+      else if(u.type === "moleculeCategory") state.moleculeCategoryUnlocked[u.key] = true;
+      else if(u.type === "substanceItem") state.substanceItemUnlocked[SUBSTANCE_NAME_TO_INDEX[u.key]] = true;
+    });
   }
 
   function showResearchNodeToast(node){
     const dict = STRINGS[state.lang];
-    if(node.unlock.type === "substanceItem"){
-      const idx = SUBSTANCE_NAME_TO_INDEX[node.unlock.key];
+    const firstUnlock = Array.isArray(node.unlock) ? node.unlock[0] : node.unlock;
+    if(firstUnlock.type === "substanceItem"){
+      const idx = SUBSTANCE_NAME_TO_INDEX[firstUnlock.key];
       showUnlockToastText(dict.unlock_toast_substance_item.replace("{name}", substanceName(SUBSTANCE_TABLE[idx])));
     } else {
       showUnlockToast(node.toastKey);
@@ -3934,7 +3959,10 @@
       state.generatorTypeUnlocked = { coal:false, oil:false, solar:false, fission:false, fusion:false };
     }
     if(!state.moleculeCategoryUnlocked || typeof state.moleculeCategoryUnlocked !== "object"){
-      state.moleculeCategoryUnlocked = { gas:false, liquid:false, solid:false };
+      state.moleculeCategoryUnlocked = { gas:false, liquid:false, solid:false, fusion:false };
+    }
+    if(typeof state.moleculeCategoryUnlocked.fusion !== "boolean"){
+      state.moleculeCategoryUnlocked.fusion = false;
     }
     state.substanceItemUnlocked = ensureArrayLength(state.substanceItemUnlocked, SUBSTANCE_TABLE.length, false);
     // researchProgressは「ノードごとに、要件ごとの納品済み量」を持つ配列の配列。
@@ -4059,7 +4087,7 @@
       loaded.generatorTypeUnlocked = { coal:true, oil:true, solar:true, fission:true, fusion:true };
     }
     if(loaded.moleculesUnlocked && !("moleculeCategoryUnlocked" in loaded)){
-      loaded.moleculeCategoryUnlocked = { gas:true, liquid:true, solid:true };
+      loaded.moleculeCategoryUnlocked = { gas:true, liquid:true, solid:true, fusion:false };
     }
     if(loaded.substancesUnlocked && !("substanceItemUnlocked" in loaded)){
       loaded.substanceItemUnlocked = new Array(SUBSTANCE_TABLE.length).fill(true);
@@ -4131,7 +4159,7 @@
       substancesUnlocked:false,
       solarUnlocked:false,
       generatorTypeUnlocked:{ coal:false, oil:false, solar:false, fission:false, fusion:false },
-      moleculeCategoryUnlocked:{ gas:false, liquid:false, solid:false },
+      moleculeCategoryUnlocked:{ gas:false, liquid:false, solid:false, fusion:false },
       substanceItemUnlocked:new Array(SUBSTANCE_TABLE.length).fill(false),
       researchProgress:RESEARCH_NODES.map(function(n){ return new Array(n.requirements.length).fill(0); }),
       tutorialStepIndex:0,
