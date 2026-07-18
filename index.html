@@ -692,6 +692,56 @@
   }
   .auto-producer-btn:active{ background:var(--bg-panel-hi); }
 
+  /* ── 稼働数調整 ±ボタン ── */
+  .adj-btn{
+    background:var(--bg-main);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:5px;
+    padding:1px 6px;
+    font-size:14px;
+    line-height:1;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .adj-btn:active{ background:var(--bg-panel-hi); }
+  .active-adj{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    font-size:11px;
+  }
+  /* ── 一括オンオフ行 ── */
+  .gen-bulk-row,.auto-bulk-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:10px;
+    font-size:11px;
+    color:var(--text-dim);
+  }
+  .bulk-btn{
+    background:var(--bg-main);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:8px;
+    padding:4px 10px;
+    font-size:11px;
+    cursor:pointer;
+  }
+  .bulk-btn:active{ background:var(--bg-panel-hi); }
+  /* ── 発電機稼働中行 ── */
+  .gen-active-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-size:11px;
+    color:var(--text-dim);
+    padding:6px 0 4px;
+    border-top:1px dashed var(--border);
+    margin-top:6px;
+  }
+
   /* ============ 太陽系タブ ============ */
   .requirement-row{
     padding:10px 0;
@@ -1140,13 +1190,24 @@
       <button class="warehouse-subtab" data-pane="substances" data-i18n="category_materials">全物質</button>
     </div>
 
+    <div class="auto-bulk-row">
+      <span data-i18n="all_ctrl_label">一括:</span>
+      <button class="bulk-btn" id="autoBulkStopBtn" data-i18n="all_stop_btn">全停止</button>
+      <button class="bulk-btn" id="autoBulkStartBtn" data-i18n="all_start_btn">全稼働</button>
+    </div>
+
     <div class="warehouse-pane" id="warehousePaneParticles">
       <div class="cap-row has-auto">
         <span class="cap-name" data-i18n="proton_label">陽子</span>
         <span class="cap-value display-font" id="protonCapValue">50</span>
         <button class="cap-expand-btn display-font" id="protonCapBtn">+50</button>
         <div class="auto-producer-row">
-          <span data-i18n="auto_producer_label">自動生産機</span> <span class="auto-producer-owned display-font" id="autoOwnedProton">0</span>
+          <span data-i18n="auto_producer_label">自動生産機</span>
+          <div class="active-adj">
+            <button class="adj-btn" id="autoBtnDecProton">−</button>
+            <span class="display-font" id="autoActiveProton">0</span>/<span class="auto-producer-owned display-font" id="autoOwnedProton">0</span>
+            <button class="adj-btn" id="autoBtnIncProton">＋</button>
+          </div>
           <button class="auto-producer-btn display-font" id="autoBtnProton"></button>
         </div>
         <div class="auto-producer-row">
@@ -1159,7 +1220,12 @@
         <span class="cap-value display-font" id="electronCapValue">50</span>
         <button class="cap-expand-btn display-font" id="electronCapBtn">+50</button>
         <div class="auto-producer-row">
-          <span data-i18n="auto_producer_label">自動生産機</span> <span class="auto-producer-owned display-font" id="autoOwnedElectron">0</span>
+          <span data-i18n="auto_producer_label">自動生産機</span>
+          <div class="active-adj">
+            <button class="adj-btn" id="autoBtnDecElectron">−</button>
+            <span class="display-font" id="autoActiveElectron">0</span>/<span class="auto-producer-owned display-font" id="autoOwnedElectron">0</span>
+            <button class="adj-btn" id="autoBtnIncElectron">＋</button>
+          </div>
           <button class="auto-producer-btn display-font" id="autoBtnElectron"></button>
         </div>
         <div class="auto-producer-row">
@@ -1172,7 +1238,12 @@
         <span class="cap-value display-font" id="neutronCapValue">50</span>
         <button class="cap-expand-btn display-font" id="neutronCapBtn">+50</button>
         <div class="auto-producer-row">
-          <span data-i18n="auto_producer_label">自動生産機</span> <span class="auto-producer-owned display-font" id="autoOwnedNeutron">0</span>
+          <span data-i18n="auto_producer_label">自動生産機</span>
+          <div class="active-adj">
+            <button class="adj-btn" id="autoBtnDecNeutron">−</button>
+            <span class="display-font" id="autoActiveNeutron">0</span>/<span class="auto-producer-owned display-font" id="autoOwnedNeutron">0</span>
+            <button class="adj-btn" id="autoBtnIncNeutron">＋</button>
+          </div>
           <button class="auto-producer-btn display-font" id="autoBtnNeutron"></button>
         </div>
         <div class="auto-producer-row">
@@ -1629,10 +1700,14 @@
       gen_fission_name:"核分裂発電機",
       gen_fusion_name:"核融合発電機",
       generator_owned_label:"所有数",
+      generator_active_label:"稼働中",
       generator_output_label:"出力",
       generator_fuel_label:"燃料",
       generator_no_fuel_label:"燃料不要",
       generator_build_btn:"設置する",
+      all_ctrl_label:"一括:",
+      all_stop_btn:"全停止",
+      all_start_btn:"全稼働",
       auto_producer_label:"自動生産機",
       tap_power_label:"タップ力",
       auto_producer_assign_btn:"設置",
@@ -1774,10 +1849,14 @@
       gen_fission_name:"Nuclear Fission Plant",
       gen_fusion_name:"Nuclear Fusion Plant",
       generator_owned_label:"Owned",
+      generator_active_label:"Active",
       generator_output_label:"Output",
       generator_fuel_label:"Fuel",
       generator_no_fuel_label:"No fuel required",
       generator_build_btn:"Build",
+      all_ctrl_label:"Bulk:",
+      all_stop_btn:"All Off",
+      all_start_btn:"All On",
       auto_producer_label:"Auto-Producer",
       tap_power_label:"Tap Power",
       auto_producer_assign_btn:"Install",
@@ -2383,9 +2462,16 @@
     elementsUnlockedCount:1,
     elementCounts:new Array(ELEMENT_TABLE.length).fill(0),
     generatorOwned:{ coal:0, oil:0, solar:0, fission:0, fusion:0 },
+    generatorActive:{ coal:0, oil:0, solar:0, fission:0, fusion:0 },
     generatorUnitTimers:{ coal:[], oil:[], fission:[], fusion:[] },
     windupTimeRemaining:0,
     autoAssigned:{
+      particle:{ proton:0, electron:0, neutron:0 },
+      element:new Array(ELEMENT_TABLE.length).fill(0),
+      molecule:new Array(MOLECULE_TABLE.length).fill(0),
+      substance:new Array(SUBSTANCE_TABLE.length).fill(0)
+    },
+    autoActive:{
       particle:{ proton:0, electron:0, neutron:0 },
       element:new Array(ELEMENT_TABLE.length).fill(0),
       molecule:new Array(MOLECULE_TABLE.length).fill(0),
@@ -2653,6 +2739,9 @@
     const dict = STRINGS[state.lang];
     ownedEl.textContent = state.autoAssigned.particle[key];
     btnEl.innerHTML = dict.auto_producer_assign_btn + " (" + autoProducerCostHtml() + ")";
+    const capKey = key.charAt(0).toUpperCase() + key.slice(1);
+    const activeEl = document.getElementById("autoActive" + capKey);
+    if(activeEl) activeEl.textContent = state.autoActive.particle[key] || 0;
   }
 
   function renderTapPowerRow(key, levelEl, btnEl){
@@ -2943,6 +3032,7 @@
   function buyAutoProducer(i){
     if(!payAutoProducerCost()) return;
     state.autoAssigned.element[i] += 1;
+    state.autoActive.element[i] = (state.autoActive.element[i] || 0) + 1;
     render();
     save();
   }
@@ -2950,6 +3040,7 @@
   function buyAutoProducerParticle(key){
     if(!payAutoProducerCost()) return;
     state.autoAssigned.particle[key] += 1;
+    state.autoActive.particle[key] = (state.autoActive.particle[key] || 0) + 1;
     render();
     save();
   }
@@ -2993,6 +3084,7 @@
   function buyAutoProducerMolecule(j){
     if(!payAutoProducerCost()) return;
     state.autoAssigned.molecule[j] += 1;
+    state.autoActive.molecule[j] = (state.autoActive.molecule[j] || 0) + 1;
     render();
     save();
   }
@@ -3000,6 +3092,7 @@
   function buyAutoProducerSubstance(k){
     if(!payAutoProducerCost()) return;
     state.autoAssigned.substance[k] += 1;
+    state.autoActive.substance[k] = (state.autoActive.substance[k] || 0) + 1;
     render();
     save();
   }
@@ -3036,6 +3129,7 @@
       }
     }
     state.generatorOwned[type] += 1;
+    state.generatorActive[type] = (state.generatorActive[type] || 0) + 1;
     render();
     save();
   }
@@ -3047,13 +3141,49 @@
     }).join('<span class="recipe-plus">+</span>');
   }
 
+  // ── 稼働数調整 ──
+  function adjustGeneratorActive(type, delta){
+    if(!state.generatorOwned[type]) return;
+    state.generatorActive[type] = Math.max(0, Math.min(state.generatorOwned[type], (state.generatorActive[type] || 0) + delta));
+    render(); save();
+  }
+  function setAllGeneratorsActive(on){
+    GENERATOR_TYPES.forEach(function(t){ state.generatorActive[t] = on ? state.generatorOwned[t] : 0; });
+    render(); save();
+  }
+  function adjustAutoActive(cat, idx, delta){
+    const owned = cat === "particle" ? state.autoAssigned.particle[idx] : state.autoAssigned[cat][idx];
+    if(!owned) return;
+    const cur = cat === "particle" ? (state.autoActive.particle[idx] || 0) : (state.autoActive[cat][idx] || 0);
+    const next = Math.max(0, Math.min(owned, cur + delta));
+    if(cat === "particle") state.autoActive.particle[idx] = next;
+    else state.autoActive[cat][idx] = next;
+    render(); save();
+  }
+  function setAllAutoActive(on){
+    PARTICLE_KEYS.forEach(function(k){ state.autoActive.particle[k] = on ? state.autoAssigned.particle[k] : 0; });
+    for(let i = 0; i < state.autoAssigned.element.length; i++){ state.autoActive.element[i] = on ? state.autoAssigned.element[i] : 0; }
+    for(let j = 0; j < state.autoAssigned.molecule.length; j++){ state.autoActive.molecule[j] = on ? state.autoAssigned.molecule[j] : 0; }
+    for(let k = 0; k < state.autoAssigned.substance.length; k++){ state.autoActive.substance[k] = on ? state.autoAssigned.substance[k] : 0; }
+    render(); save();
+  }
+
   function renderGenerators(){
     const dict = STRINGS[state.lang];
+    const anyUnlocked = GENERATOR_TYPES.some(function(t){ return state.generatorTypeUnlocked[t]; });
     let html = "";
+    if(anyUnlocked){
+      html += '<div class="gen-bulk-row">' +
+        '<span>' + dict.all_ctrl_label + '</span>' +
+        '<button class="bulk-btn" id="genBulkStopBtn">' + dict.all_stop_btn + '</button>' +
+        '<button class="bulk-btn" id="genBulkStartBtn">' + dict.all_start_btn + '</button>' +
+      '</div>';
+    }
     GENERATOR_TYPES.forEach(function(type){
-      if(!state.generatorTypeUnlocked[type]) return; // 研究で解放されるまで表示しない
+      if(!state.generatorTypeUnlocked[type]) return;
       const config = GENERATOR_CONFIGS[type];
       const owned = state.generatorOwned[type];
+      const active = Math.min(state.generatorActive[type] || 0, owned);
       const intervalLabel = config.fuelIntervalTicks > 1 ? " /" + config.fuelIntervalTicks + "s" : " /s";
       const fuelText = config.fuel.length === 0
         ? dict.generator_no_fuel_label
@@ -3068,6 +3198,14 @@
             dict.generator_output_label + ': <span class="display-font">' + config.output + 'MW</span>' +
             '<br>' + fuelText +
           '</div>' +
+          '<div class="gen-active-row">' +
+            '<span>' + dict.generator_active_label + '</span>' +
+            '<div class="active-adj">' +
+              '<button class="adj-btn gen-adj" data-type="' + type + '" data-delta="-1">−</button>' +
+              '<span class="display-font">' + active + '/' + owned + '</span>' +
+              '<button class="adj-btn gen-adj" data-type="' + type + '" data-delta="1">＋</button>' +
+            '</div>' +
+          '</div>' +
           '<div class="generator-cost">' + generatorCostHtml(config.buildCost) + '</div>' +
           '<button class="generator-build-btn display-font" data-gen-type="' + type + '">' + dict.generator_build_btn + '</button>' +
         '</div>';
@@ -3076,6 +3214,15 @@
     el.generatorList.querySelectorAll(".generator-build-btn").forEach(function(btn){
       btn.addEventListener("click", function(){ buildGenerator(btn.getAttribute("data-gen-type")); });
     });
+    el.generatorList.querySelectorAll(".gen-adj").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        adjustGeneratorActive(btn.getAttribute("data-type"), parseInt(btn.getAttribute("data-delta")));
+      });
+    });
+    const stopBtn = document.getElementById("genBulkStopBtn");
+    const startBtn = document.getElementById("genBulkStartBtn");
+    if(stopBtn) stopBtn.addEventListener("click", function(){ setAllGeneratorsActive(false); });
+    if(startBtn) startBtn.addEventListener("click", function(){ setAllGeneratorsActive(true); });
   }
 
   function renderGeneratorBuffButton(btnEl, expiresAt){
@@ -3111,8 +3258,9 @@
     while(timers.length < owned) timers.push(0);
     while(timers.length > owned) timers.pop();
 
+    const activeCount = Math.min(state.generatorActive[type] || 0, owned);
     let supply = 0;
-    for(let k = 0; k < owned; k++){
+    for(let k = 0; k < activeCount; k++){
       if(timers[k] <= 0){
         // この1台分の燃料補充を試みる
         let refueled = false;
@@ -3153,7 +3301,7 @@
     supply += tickFuelGenerator("oil");
 
     // 太陽光発電（燃料不要）
-    supply += state.generatorOwned.solar * GENERATOR_CONFIGS.solar.output;
+    supply += (state.generatorActive.solar || 0) * GENERATOR_CONFIGS.solar.output;
 
     // 核分裂発電機（ウラン優先、なければプルトニウム。燃料交換サイクルが長め）
     supply += tickFuelGenerator("fission");
@@ -3161,21 +3309,21 @@
     // 核融合発電機
     supply += tickFuelGenerator("fusion");
 
-    // 自動生産機の消費電力（素粒子・元素・分子・物質すべて合算）
+    // 自動生産機の消費電力（稼働中の台数のみ合算）
     let demand = 0;
-    PARTICLE_KEYS.forEach(function(key){ demand += state.autoAssigned.particle[key] * AUTO_PRODUCER_POWER_DRAW; });
-    for(let i = 0; i < state.autoAssigned.element.length; i++){ demand += state.autoAssigned.element[i] * AUTO_PRODUCER_POWER_DRAW; }
-    for(let j = 0; j < state.autoAssigned.molecule.length; j++){ demand += state.autoAssigned.molecule[j] * AUTO_PRODUCER_POWER_DRAW; }
-    for(let k = 0; k < state.autoAssigned.substance.length; k++){ demand += state.autoAssigned.substance[k] * AUTO_PRODUCER_POWER_DRAW; }
+    PARTICLE_KEYS.forEach(function(key){ demand += (state.autoActive.particle[key] || 0) * AUTO_PRODUCER_POWER_DRAW; });
+    for(let i = 0; i < state.autoActive.element.length; i++){ demand += (state.autoActive.element[i] || 0) * AUTO_PRODUCER_POWER_DRAW; }
+    for(let j = 0; j < state.autoActive.molecule.length; j++){ demand += (state.autoActive.molecule[j] || 0) * AUTO_PRODUCER_POWER_DRAW; }
+    for(let k = 0; k < state.autoActive.substance.length; k++){ demand += (state.autoActive.substance[k] || 0) * AUTO_PRODUCER_POWER_DRAW; }
 
     const efficiency = demand > 0 ? Math.min(1, supply / demand) : 1;
     state.powerGen = Math.round(supply * 10) / 10;
     state.powerDemand = demand;
 
-    // 自動生産機による生成（効率に応じて生産速度が落ちる）
+    // 自動生産機による生成（稼働中の台数・効率に応じた生産速度）
     PARTICLE_KEYS.forEach(function(key){
-      if(state.autoAssigned.particle[key] <= 0) return;
-      state.autoProgress.particle[key] += state.autoAssigned.particle[key] * AUTO_PRODUCER_RATE * efficiency;
+      if((state.autoActive.particle[key] || 0) <= 0) return;
+      state.autoProgress.particle[key] += state.autoActive.particle[key] * AUTO_PRODUCER_RATE * efficiency;
       while(state.autoProgress.particle[key] >= 1){
         const success = tryProduceParticle(key);
         state.autoProgress.particle[key] -= 1;
@@ -3183,17 +3331,17 @@
       }
     });
     for(let i = 0; i < state.autoAssigned.element.length; i++){
-      if(state.autoAssigned.element[i] <= 0) continue;
-      state.autoProgress.element[i] += state.autoAssigned.element[i] * AUTO_PRODUCER_RATE * efficiency;
+      if((state.autoActive.element[i] || 0) <= 0) continue;
+      state.autoProgress.element[i] += state.autoActive.element[i] * AUTO_PRODUCER_RATE * efficiency;
       while(state.autoProgress.element[i] >= 1){
         const success = tryCraftOne(i);
         state.autoProgress.element[i] -= 1;
-        if(!success) break; // 材料切れ・上限到達なら以降のティックまで持ち越さない
+        if(!success) break;
       }
     }
     for(let j = 0; j < state.autoAssigned.molecule.length; j++){
-      if(state.autoAssigned.molecule[j] <= 0) continue;
-      state.autoProgress.molecule[j] += state.autoAssigned.molecule[j] * AUTO_PRODUCER_RATE * efficiency;
+      if((state.autoActive.molecule[j] || 0) <= 0) continue;
+      state.autoProgress.molecule[j] += state.autoActive.molecule[j] * AUTO_PRODUCER_RATE * efficiency;
       while(state.autoProgress.molecule[j] >= 1){
         const success = tryCraftMolecule(j);
         state.autoProgress.molecule[j] -= 1;
@@ -3201,8 +3349,8 @@
       }
     }
     for(let k = 0; k < state.autoAssigned.substance.length; k++){
-      if(state.autoAssigned.substance[k] <= 0) continue;
-      state.autoProgress.substance[k] += state.autoAssigned.substance[k] * AUTO_PRODUCER_RATE * efficiency;
+      if((state.autoActive.substance[k] || 0) <= 0) continue;
+      state.autoProgress.substance[k] += state.autoActive.substance[k] * AUTO_PRODUCER_RATE * efficiency;
       while(state.autoProgress.substance[k] >= 1){
         const success = tryCraftSubstance(k);
         state.autoProgress.substance[k] -= 1;
@@ -3234,11 +3382,18 @@
       '<span class="cap-value display-font" id="elementCapValue' + i + '">' + state.elementCaps[i] + '</span>' +
       '<button class="cap-expand-btn display-font" id="elementCapBtn' + i + '"></button>' +
       '<div class="auto-producer-row">' +
-        '<span>' + dict.auto_producer_label + ' <span class="auto-producer-owned display-font" id="autoOwned' + i + '">' + state.autoAssigned.element[i] + '</span></span>' +
+        '<span>' + dict.auto_producer_label + '</span>' +
+        '<div class="active-adj">' +
+          '<button class="adj-btn" id="autoBtnDecEl' + i + '">−</button>' +
+          '<span class="display-font" id="autoActiveEl' + i + '">' + (state.autoActive.element[i] || 0) + '</span>/<span class="auto-producer-owned display-font" id="autoOwned' + i + '">' + state.autoAssigned.element[i] + '</span>' +
+          '<button class="adj-btn" id="autoBtnIncEl' + i + '">＋</button>' +
+        '</div>' +
         '<button class="auto-producer-btn display-font" id="autoBtn' + i + '">' + dict.auto_producer_assign_btn + ' (' + autoProducerCostHtml() + ')</button>' +
       '</div>';
     row.querySelector("#elementCapBtn" + i).addEventListener("click", function(){ expandElementCap(i); });
     row.querySelector("#autoBtn" + i).addEventListener("click", function(){ buyAutoProducer(i); });
+    row.querySelector("#autoBtnDecEl" + i).addEventListener("click", function(){ adjustAutoActive("element", i, -1); });
+    row.querySelector("#autoBtnIncEl" + i).addEventListener("click", function(){ adjustAutoActive("element", i, 1); });
     return row;
   }
 
@@ -3251,9 +3406,11 @@
       const valueNode = document.getElementById("elementCapValue" + i);
       const btnNode = document.getElementById("elementCapBtn" + i);
       const ownedNode = document.getElementById("autoOwned" + i);
+      const activeNode = document.getElementById("autoActiveEl" + i);
       if(valueNode) valueNode.textContent = state.elementCaps[i];
       if(btnNode) btnNode.textContent = "+" + CAP_STEP + " (⚡" + elementCapExpandCost(i) + ")";
       if(ownedNode) ownedNode.textContent = state.autoAssigned.element[i];
+      if(activeNode) activeNode.textContent = state.autoActive.element[i] || 0;
     }
   }
 
@@ -3382,11 +3539,18 @@
       '<span class="cap-value display-font" id="moleculeCapValue' + j + '">' + state.moleculeCaps[j] + '</span>' +
       '<button class="cap-expand-btn display-font" id="moleculeCapBtn' + j + '"></button>' +
       '<div class="auto-producer-row">' +
-        '<span>' + dict.auto_producer_label + ' <span class="auto-producer-owned display-font" id="autoOwnedMolecule' + j + '">' + state.autoAssigned.molecule[j] + '</span></span>' +
+        '<span>' + dict.auto_producer_label + '</span>' +
+        '<div class="active-adj">' +
+          '<button class="adj-btn" id="autoBtnDecMol' + j + '">−</button>' +
+          '<span class="display-font" id="autoActiveMol' + j + '">' + (state.autoActive.molecule[j] || 0) + '</span>/<span class="auto-producer-owned display-font" id="autoOwnedMolecule' + j + '">' + state.autoAssigned.molecule[j] + '</span>' +
+          '<button class="adj-btn" id="autoBtnIncMol' + j + '">＋</button>' +
+        '</div>' +
         '<button class="auto-producer-btn display-font" id="autoBtnMolecule' + j + '">' + dict.auto_producer_assign_btn + ' (' + autoProducerCostHtml() + ')</button>' +
       '</div>';
     row.querySelector("#moleculeCapBtn" + j).addEventListener("click", function(){ expandMoleculeCap(j); });
     row.querySelector("#autoBtnMolecule" + j).addEventListener("click", function(){ buyAutoProducerMolecule(j); });
+    row.querySelector("#autoBtnDecMol" + j).addEventListener("click", function(){ adjustAutoActive("molecule", j, -1); });
+    row.querySelector("#autoBtnIncMol" + j).addEventListener("click", function(){ adjustAutoActive("molecule", j, 1); });
     return row;
   }
 
@@ -3400,9 +3564,11 @@
       const valueNode = document.getElementById("moleculeCapValue" + j);
       const btnNode = document.getElementById("moleculeCapBtn" + j);
       const ownedNode = document.getElementById("autoOwnedMolecule" + j);
+      const activeNode = document.getElementById("autoActiveMol" + j);
       if(valueNode) valueNode.textContent = state.moleculeCaps[j];
       if(btnNode) btnNode.textContent = "+" + CAP_STEP + " (⚡" + moleculeCapExpandCost(j) + ")";
       if(ownedNode) ownedNode.textContent = state.autoAssigned.molecule[j];
+      if(activeNode) activeNode.textContent = state.autoActive.molecule[j] || 0;
     }
   }
 
@@ -3531,11 +3697,18 @@
       '<span class="cap-value display-font" id="substanceCapValue' + k + '">' + state.substanceCaps[k] + '</span>' +
       '<button class="cap-expand-btn display-font" id="substanceCapBtn' + k + '"></button>' +
       '<div class="auto-producer-row">' +
-        '<span>' + dict.auto_producer_label + ' <span class="auto-producer-owned display-font" id="autoOwnedSubstance' + k + '">' + state.autoAssigned.substance[k] + '</span></span>' +
+        '<span>' + dict.auto_producer_label + '</span>' +
+        '<div class="active-adj">' +
+          '<button class="adj-btn" id="autoBtnDecSub' + k + '">−</button>' +
+          '<span class="display-font" id="autoActiveSub' + k + '">' + (state.autoActive.substance[k] || 0) + '</span>/<span class="auto-producer-owned display-font" id="autoOwnedSubstance' + k + '">' + state.autoAssigned.substance[k] + '</span>' +
+          '<button class="adj-btn" id="autoBtnIncSub' + k + '">＋</button>' +
+        '</div>' +
         '<button class="auto-producer-btn display-font" id="autoBtnSubstance' + k + '">' + dict.auto_producer_assign_btn + ' (' + autoProducerCostHtml() + ')</button>' +
       '</div>';
     row.querySelector("#substanceCapBtn" + k).addEventListener("click", function(){ expandSubstanceCap(k); });
     row.querySelector("#autoBtnSubstance" + k).addEventListener("click", function(){ buyAutoProducerSubstance(k); });
+    row.querySelector("#autoBtnDecSub" + k).addEventListener("click", function(){ adjustAutoActive("substance", k, -1); });
+    row.querySelector("#autoBtnIncSub" + k).addEventListener("click", function(){ adjustAutoActive("substance", k, 1); });
     return row;
   }
 
@@ -3549,9 +3722,11 @@
       const valueNode = document.getElementById("substanceCapValue" + k);
       const btnNode = document.getElementById("substanceCapBtn" + k);
       const ownedNode = document.getElementById("autoOwnedSubstance" + k);
+      const activeNode = document.getElementById("autoActiveSub" + k);
       if(valueNode) valueNode.textContent = state.substanceCaps[k];
       if(btnNode) btnNode.textContent = "+" + CAP_STEP + " (⚡" + substanceCapExpandCost(k) + ")";
       if(ownedNode) ownedNode.textContent = state.autoAssigned.substance[k];
+      if(activeNode) activeNode.textContent = state.autoActive.substance[k] || 0;
     }
   }
 
@@ -4420,6 +4595,31 @@
     state.autoProgress.molecule = ensureArrayLength(state.autoProgress.molecule, MOLECULE_TABLE.length, 0);
     state.autoAssigned.substance = ensureArrayLength(state.autoAssigned.substance, SUBSTANCE_TABLE.length, 0);
     state.autoProgress.substance = ensureArrayLength(state.autoProgress.substance, SUBSTANCE_TABLE.length, 0);
+    // generatorActive の整合性確保
+    if(!state.generatorActive) state.generatorActive = Object.assign({}, state.generatorOwned);
+    GENERATOR_TYPES.forEach(function(t){
+      if(typeof state.generatorActive[t] !== "number") state.generatorActive[t] = state.generatorOwned[t];
+      state.generatorActive[t] = Math.max(0, Math.min(state.generatorActive[t], state.generatorOwned[t]));
+    });
+    // autoActive の整合性確保
+    if(!state.autoActive){ state.autoActive = { particle:{ proton:0, electron:0, neutron:0 }, element:[], molecule:[], substance:[] }; }
+    if(!state.autoActive.particle) state.autoActive.particle = { proton:0, electron:0, neutron:0 };
+    PARTICLE_KEYS.forEach(function(k){
+      if(typeof state.autoActive.particle[k] !== "number") state.autoActive.particle[k] = state.autoAssigned.particle[k];
+      state.autoActive.particle[k] = Math.max(0, Math.min(state.autoActive.particle[k], state.autoAssigned.particle[k]));
+    });
+    state.autoActive.element = ensureArrayLength(state.autoActive.element, ELEMENT_TABLE.length, 0);
+    state.autoActive.molecule = ensureArrayLength(state.autoActive.molecule, MOLECULE_TABLE.length, 0);
+    state.autoActive.substance = ensureArrayLength(state.autoActive.substance, SUBSTANCE_TABLE.length, 0);
+    for(let i = 0; i < ELEMENT_TABLE.length; i++){
+      state.autoActive.element[i] = Math.max(0, Math.min(state.autoActive.element[i], state.autoAssigned.element[i]));
+    }
+    for(let j = 0; j < MOLECULE_TABLE.length; j++){
+      state.autoActive.molecule[j] = Math.max(0, Math.min(state.autoActive.molecule[j], state.autoAssigned.molecule[j]));
+    }
+    for(let k = 0; k < SUBSTANCE_TABLE.length; k++){
+      state.autoActive.substance[k] = Math.max(0, Math.min(state.autoActive.substance[k], state.autoAssigned.substance[k]));
+    }
     // 万一カウントが上限を超えてしまっているデータがあれば上限に合わせて丸める
     for(let i = 0; i < ELEMENT_TABLE.length; i++){
       if(state.elementCounts[i] > state.elementCaps[i]) state.elementCounts[i] = state.elementCaps[i];
@@ -4508,6 +4708,20 @@
     if(loaded.substancesUnlocked && !("substanceItemUnlocked" in loaded)){
       loaded.substanceItemUnlocked = new Array(SUBSTANCE_TABLE.length).fill(true);
     }
+    // 旧セーブ形式（generatorActiveが追加される前）からの移行: 所有数=稼働数として引き継ぐ
+    if(!loaded.generatorActive && loaded.generatorOwned){
+      loaded.generatorActive = Object.assign({ coal:0, oil:0, solar:0, fission:0, fusion:0 }, loaded.generatorOwned);
+    }
+    // 旧セーブ形式（autoActiveが追加される前）からの移行: 割当数=稼働数として引き継ぐ
+    if(!loaded.autoActive && loaded.autoAssigned){
+      const aa = loaded.autoAssigned;
+      loaded.autoActive = {
+        particle: Object.assign({ proton:0, electron:0, neutron:0 }, aa.particle || {}),
+        element: (aa.element || []).slice(),
+        molecule: (aa.molecule || []).slice(),
+        substance: (aa.substance || []).slice()
+      };
+    }
     state = Object.assign(state, loaded);
   }
 
@@ -4588,9 +4802,16 @@
       elementsUnlockedCount:1,
       elementCounts:new Array(ELEMENT_TABLE.length).fill(0),
       generatorOwned:{ coal:0, oil:0, solar:0, fission:0, fusion:0 },
+      generatorActive:{ coal:0, oil:0, solar:0, fission:0, fusion:0 },
       generatorUnitTimers:{ coal:[], oil:[], fission:[], fusion:[] },
       windupTimeRemaining:0,
       autoAssigned:{
+        particle:{ proton:0, electron:0, neutron:0 },
+        element:new Array(ELEMENT_TABLE.length).fill(0),
+        molecule:new Array(MOLECULE_TABLE.length).fill(0),
+        substance:new Array(SUBSTANCE_TABLE.length).fill(0)
+      },
+      autoActive:{
         particle:{ proton:0, electron:0, neutron:0 },
         element:new Array(ELEMENT_TABLE.length).fill(0),
         molecule:new Array(MOLECULE_TABLE.length).fill(0),
@@ -4663,6 +4884,14 @@
   el.autoBtnProton.addEventListener("click", ()=>buyAutoProducerParticle("proton"));
   el.autoBtnElectron.addEventListener("click", ()=>buyAutoProducerParticle("electron"));
   el.autoBtnNeutron.addEventListener("click", ()=>buyAutoProducerParticle("neutron"));
+  document.getElementById("autoBtnDecProton").addEventListener("click", ()=>adjustAutoActive("particle","proton",-1));
+  document.getElementById("autoBtnIncProton").addEventListener("click", ()=>adjustAutoActive("particle","proton",1));
+  document.getElementById("autoBtnDecElectron").addEventListener("click", ()=>adjustAutoActive("particle","electron",-1));
+  document.getElementById("autoBtnIncElectron").addEventListener("click", ()=>adjustAutoActive("particle","electron",1));
+  document.getElementById("autoBtnDecNeutron").addEventListener("click", ()=>adjustAutoActive("particle","neutron",-1));
+  document.getElementById("autoBtnIncNeutron").addEventListener("click", ()=>adjustAutoActive("particle","neutron",1));
+  document.getElementById("autoBulkStopBtn").addEventListener("click", ()=>setAllAutoActive(false));
+  document.getElementById("autoBulkStartBtn").addEventListener("click", ()=>setAllAutoActive(true));
   el.tapPowerBtnProton.addEventListener("click", ()=>buyTapPower("proton"));
   el.tapPowerBtnElectron.addEventListener("click", ()=>buyTapPower("electron"));
   el.tapPowerBtnNeutron.addEventListener("click", ()=>buyTapPower("neutron"));
