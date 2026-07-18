@@ -758,6 +758,18 @@
     color:rgb(45,170,80);
   }
   .gen-toggle-btn:active{ opacity:0.65; }
+  .gen-fuel-shortage-badge{
+    font-size:10px;
+    font-weight:600;
+    color:rgb(220,60,60);
+    background:rgba(220,60,60,0.12);
+    border:1px solid rgba(220,60,60,0.45);
+    border-radius:8px;
+    padding:1px 6px;
+    margin-left:6px;
+    vertical-align:middle;
+    white-space:nowrap;
+  }
   /* ── 発電機カード 稼働状態アニメーション ── */
   @keyframes gen-pulse-run{
     0%,100%{ box-shadow:0 0 0 0 rgba(60,200,100,0); border-color:rgba(60,200,100,0.45); }
@@ -1740,6 +1752,7 @@
       generator_owned_label:"所有数",
       generator_active_label:"稼働中",
       gen_stopped_label:"停止中",
+      gen_fuel_shortage:"燃料不足",
       generator_output_label:"出力",
       generator_fuel_label:"燃料",
       generator_no_fuel_label:"燃料不要",
@@ -1890,6 +1903,7 @@
       generator_owned_label:"Owned",
       generator_active_label:"Active",
       gen_stopped_label:"Stopped",
+      gen_fuel_shortage:"Fuel shortage",
       generator_output_label:"Output",
       generator_fuel_label:"Fuel",
       generator_no_fuel_label:"No fuel required",
@@ -3254,7 +3268,9 @@
       html +=
         '<div class="generator-card' + cardStateClass + '">' +
           '<div class="generator-card-header">' +
-            '<span class="generator-name">' + dict[config.nameKey] + '</span>' +
+            '<span class="generator-name">' + dict[config.nameKey] +
+              (cardStateClass === " gen-starved" ? '<span class="gen-fuel-shortage-badge">' + dict.gen_fuel_shortage + '</span>' : '') +
+            '</span>' +
             '<span class="generator-owned">' + dict.generator_owned_label + ': <span class="display-font">' + owned + '</span></span>' +
           '</div>' +
           '<div class="generator-info">' +
