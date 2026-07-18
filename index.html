@@ -770,6 +770,33 @@
     vertical-align:middle;
     white-space:nowrap;
   }
+  /* ── 燃料無料稼働バフ行 ── */
+  .gen-fuel-buff-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:10px;
+    font-size:11px;
+  }
+  .gen-fuel-buff-btn{
+    background:rgba(60,200,100,0.1);
+    border:1px solid rgba(60,200,100,0.55);
+    color:rgb(40,170,80);
+    border-radius:8px;
+    padding:5px 12px;
+    font-size:11px;
+    cursor:pointer;
+    font-weight:600;
+  }
+  .gen-fuel-buff-btn:active{ opacity:0.7; }
+  .gen-fuel-buff-active-label{
+    color:rgb(60,200,100);
+    font-weight:600;
+  }
+  .gen-fuel-buff-timer{
+    color:rgb(60,200,100);
+    font-size:12px;
+  }
   /* ── 発電機カード 稼働状態アニメーション ── */
   @keyframes gen-pulse-run{
     0%,100%{ box-shadow:0 0 0 0 rgba(60,200,100,0); border-color:rgba(60,200,100,0.45); }
@@ -1753,6 +1780,9 @@
       generator_active_label:"稼働中",
       gen_stopped_label:"停止中",
       gen_fuel_shortage:"燃料不足",
+      gen_fuel_buff_btn:"▶ 広告で30分無料稼働",
+      gen_fuel_buff_active:"無料稼働中",
+      gen_fuel_buff_granted:"30分間、燃料なしで全発電機を稼働できます！",
       generator_output_label:"出力",
       generator_fuel_label:"燃料",
       generator_no_fuel_label:"燃料不要",
@@ -1904,6 +1934,9 @@
       generator_active_label:"Active",
       gen_stopped_label:"Stopped",
       gen_fuel_shortage:"Fuel shortage",
+      gen_fuel_buff_btn:"▶ Watch Ad: 30min Free Run",
+      gen_fuel_buff_active:"Free running",
+      gen_fuel_buff_granted:"All generators run fuel-free for 30 minutes!",
       generator_output_label:"Output",
       generator_fuel_label:"Fuel",
       generator_no_fuel_label:"No fuel required",
@@ -2360,6 +2393,7 @@
   const REWARD_AD_PLAY_SECONDS = 5; // モック広告の再生時間
   const GENERATOR_BUFF_MULTIPLIER = 3; // 稼働時間/発電量の倍率
   const GENERATOR_BUFF_DURATION_MS = 24 * 60 * 60 * 1000; // 効果時間（24時間、実時間ベース）
+  const GENERATOR_FUEL_BUFF_DURATION_MS = 30 * 60 * 1000; // 燃料無料稼働バフ時間（30分）
 
   // ============ ゲーム状態 ============
   // 分子のカテゴリ分類（気体/液体/固体）。研究ツリーのカテゴリ別解放に使う
@@ -2511,6 +2545,7 @@
     rewardAdCooldownRemaining:0,
     windupDurationBuffExpiresAt:0,
     windupOutputBuffExpiresAt:0,
+    generatorFuelBuffExpiresAt:0,
     tapPowerLevel:{ proton:0, electron:0, neutron:0 },
     craftTapPowerLevel:{ element:0, molecule:0, substance:0 },
     elementsUnlockedCount:1,
@@ -3238,6 +3273,17 @@
         '<button class="bulk-btn" id="genBulkStopBtn">' + dict.all_stop_btn + '</button>' +
         '<button class="bulk-btn" id="genBulkStartBtn">' + dict.all_start_btn + '</button>' +
       '</div>';
+      const fuelBuffActive = isBuffActive(state.generatorFuelBuffExpiresAt);
+      if(fuelBuffActive){
+        html += '<div class="gen-fuel-buff-row">' +
+          '<span class="gen-fuel-buff-active-label">' + dict.gen_fuel_buff_active + '</span>' +
+          '<span class="gen-fuel-buff-timer display-font">' + formatHMS(state.generatorFuelBuffExpiresAt - Date.now()) + '</span>' +
+        '</div>';
+      } else {
+        html += '<div class="gen-fuel-buff-row">' +
+          '<button class="gen-fuel-buff-btn" id="genFuelBuffBtn">' + dict.gen_fuel_buff_btn + '</button>' +
+        '</div>';
+      }
     }
     GENERATOR_TYPES.forEach(function(type){
       if(!state.generatorTypeUnlocked[type]) return;
@@ -3257,7 +3303,8 @@
           if(t > 0) anyRunning = true;
         }
         timerText = ' <span style="color:var(--text-dim);font-size:10px;">[' + parts.join(", ") + ']</span>';
-        cardStateClass = anyRunning ? " gen-running" : " gen-starved";
+        const fuelBuffOn = isBuffActive(state.generatorFuelBuffExpiresAt);
+        cardStateClass = (anyRunning || fuelBuffOn) ? " gen-running" : " gen-starved";
       } else if(config.fuel.length === 0 && active > 0){
         cardStateClass = " gen-running";
       }
@@ -3265,11 +3312,12 @@
         ? dict.generator_no_fuel_label
         : dict.generator_fuel_label + ": " + generatorCostHtml(config.fuel) + (config.fuelAlt ? '<span class="recipe-plus">/</span>' + generatorCostHtml(config.fuelAlt) : "") + intervalLabel + timerText;
       const isOn = active > 0;
+      const showShortage = cardStateClass === " gen-starved";
       html +=
         '<div class="generator-card' + cardStateClass + '">' +
           '<div class="generator-card-header">' +
             '<span class="generator-name">' + dict[config.nameKey] +
-              (cardStateClass === " gen-starved" ? '<span class="gen-fuel-shortage-badge">' + dict.gen_fuel_shortage + '</span>' : '') +
+              (showShortage ? '<span class="gen-fuel-shortage-badge">' + dict.gen_fuel_shortage + '</span>' : '') +
             '</span>' +
             '<span class="generator-owned">' + dict.generator_owned_label + ': <span class="display-font">' + owned + '</span></span>' +
           '</div>' +
@@ -3307,6 +3355,8 @@
     const startBtn = document.getElementById("genBulkStartBtn");
     if(stopBtn) stopBtn.addEventListener("click", function(){ setAllGeneratorsActive(false); });
     if(startBtn) startBtn.addEventListener("click", function(){ setAllGeneratorsActive(true); });
+    const fuelBuffBtn = document.getElementById("genFuelBuffBtn");
+    if(fuelBuffBtn) fuelBuffBtn.addEventListener("click", startFuelBuffAd);
   }
 
   function renderGeneratorBuffButton(btnEl, expiresAt){
@@ -3348,7 +3398,7 @@
       if(timers[k] <= 0){
         // この1台分の燃料補充を試みる
         let refueled = false;
-        if(debugMode){
+        if(debugMode || isBuffActive(state.generatorFuelBuffExpiresAt)){
           refueled = true;
         } else if(config.fuel.every(function(input){ return stockFor(input)[input.index] >= input.count; })){
           config.fuel.forEach(function(input){ stockFor(input)[input.index] -= input.count; });
@@ -4123,6 +4173,22 @@
     save();
   }
 
+  function startFuelBuffAd(){
+    if(isBuffActive(state.generatorFuelBuffExpiresAt)) return;
+    el.rewardAdPlayingOverlay.classList.add("open");
+    el.rewardAdCountdownFill.style.transition = "none";
+    el.rewardAdCountdownFill.style.width = "0%";
+    void el.rewardAdCountdownFill.offsetWidth;
+    el.rewardAdCountdownFill.style.transition = "width " + REWARD_AD_PLAY_SECONDS + "s linear";
+    el.rewardAdCountdownFill.style.width = "100%";
+    setTimeout(function(){
+      el.rewardAdPlayingOverlay.classList.remove("open");
+      state.generatorFuelBuffExpiresAt = Date.now() + GENERATOR_FUEL_BUFF_DURATION_MS;
+      showUnlockToastText(STRINGS[state.lang].gen_fuel_buff_granted);
+      render(); save();
+    }, REWARD_AD_PLAY_SECONDS * 1000);
+  }
+
   // 輸送キューを1ティック分（1秒相当）進める。目標が完成していたら次へ進める
   function tickTransportQueue(){
     const requirements = getActiveRequirements();
@@ -4614,6 +4680,7 @@
     }
     if(typeof state.windupDurationBuffExpiresAt !== "number"){ state.windupDurationBuffExpiresAt = 0; }
     if(typeof state.windupOutputBuffExpiresAt !== "number"){ state.windupOutputBuffExpiresAt = 0; }
+    if(typeof state.generatorFuelBuffExpiresAt !== "number"){ state.generatorFuelBuffExpiresAt = 0; }
     if(!state.tapPowerLevel || typeof state.tapPowerLevel !== "object"){
       state.tapPowerLevel = { proton:0, electron:0, neutron:0 };
     }
@@ -4881,6 +4948,7 @@
       rewardAdCooldownRemaining:0,
       windupDurationBuffExpiresAt:state.windupDurationBuffExpiresAt,
       windupOutputBuffExpiresAt:state.windupOutputBuffExpiresAt,
+      generatorFuelBuffExpiresAt:0,
       tapPowerLevel:{ proton:0, electron:0, neutron:0 },
       craftTapPowerLevel:{ element:0, molecule:0, substance:0 },
       elementsUnlockedCount:1,
