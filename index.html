@@ -514,11 +514,12 @@
     align-items:center;
     justify-content:space-between;
     gap:8px;
-    padding:8px 0;
-    border-bottom:1px solid var(--border);
+    padding:8px 10px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    margin-bottom:6px;
     font-size:12px;
   }
-  .cap-row:last-of-type{ border-bottom:none; }
   .cap-name{ flex-shrink:0; }
   .cap-value{
     color:var(--text-dim);
@@ -1274,7 +1275,7 @@
     </div>
 
     <div class="warehouse-pane" id="warehousePaneParticles">
-      <div class="cap-row has-auto">
+      <div class="cap-row has-auto" style="border-color:var(--neon-red)">
         <span class="cap-name" data-i18n="proton_label">陽子</span>
         <span class="cap-value display-font" id="protonCapValue">50</span>
         <button class="cap-expand-btn display-font" id="protonCapBtn">+50</button>
@@ -1292,7 +1293,7 @@
           <button class="auto-producer-btn display-font" id="tapPowerBtnProton"></button>
         </div>
       </div>
-      <div class="cap-row has-auto">
+      <div class="cap-row has-auto" style="border-color:var(--neon-blue)">
         <span class="cap-name" data-i18n="electron_label">電子</span>
         <span class="cap-value display-font" id="electronCapValue">50</span>
         <button class="cap-expand-btn display-font" id="electronCapBtn">+50</button>
@@ -1310,7 +1311,7 @@
           <button class="auto-producer-btn display-font" id="tapPowerBtnElectron"></button>
         </div>
       </div>
-      <div class="cap-row has-auto">
+      <div class="cap-row has-auto" style="border-color:var(--neon-white)">
         <span class="cap-name" data-i18n="neutron_label">中性子</span>
         <span class="cap-value display-font" id="neutronCapValue">50</span>
         <button class="cap-expand-btn display-font" id="neutronCapBtn">+50</button>
@@ -3511,6 +3512,7 @@
     const row = document.createElement("div");
     row.className = "cap-row has-auto";
     row.id = "elementCapRow" + i;
+    row.style.borderColor = elementTextColor(i);
     row.innerHTML =
       '<span class="cap-name">' + data.symbol + '</span>' +
       '<span class="cap-value display-font" id="elementCapValue' + i + '">' + state.elementCaps[i] + '</span>' +
@@ -3668,6 +3670,7 @@
     const row = document.createElement("div");
     row.className = "cap-row has-auto";
     row.id = "moleculeCapRow" + j;
+    row.style.borderColor = moleculeTextColor(j);
     row.innerHTML =
       '<span class="cap-name">' + data.formula + '</span>' +
       '<span class="cap-value display-font" id="moleculeCapValue' + j + '">' + state.moleculeCaps[j] + '</span>' +
@@ -3826,6 +3829,7 @@
     const row = document.createElement("div");
     row.className = "cap-row has-auto";
     row.id = "substanceCapRow" + k;
+    row.style.borderColor = substanceTextColor(k);
     row.innerHTML =
       '<span class="cap-name">' + substanceName(data) + '</span>' +
       '<span class="cap-value display-font" id="substanceCapValue' + k + '">' + state.substanceCaps[k] + '</span>' +
