@@ -4288,8 +4288,9 @@
     var frac = (now / 16000) % 1; // 16s で一周
     _genBorderAnims.forEach(function(a){
       var pos = frac * a.perim;
-      // 光跡は先頭より trailLen だけ後方から始まる
-      a.el.style.strokeDashoffset = (a.isTrail ? -pos + a.trailLen : -pos).toFixed(1) + 'px';
+      var off = a.isTrail ? -pos + a.trailLen : -pos;
+      if(off > 0) off -= a.perim; // 正値は末尾側に残像が出るので周長分戻す
+      a.el.style.strokeDashoffset = off.toFixed(1) + 'px';
     });
     requestAnimationFrame(_genBorderTick);
   });
