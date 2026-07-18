@@ -2555,7 +2555,7 @@
   function elementSellPrice(i){
     const data = ELEMENT_TABLE[i];
     const totalParticles = data.protons + data.electrons + data.neutrons;
-    return totalParticles * SELL_ENERGY_PER_PARTICLE * (1 + i * 0.01);
+    return totalParticles * SELL_ENERGY_PER_PARTICLE * Math.pow(1.02, i);
   }
 
   function sellElement(i, qty){
