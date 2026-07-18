@@ -1959,6 +1959,29 @@
 
   const SAVE_KEY = "genso_clicker_save_v1";
 
+  // Claude.aiのアーティファクト内ではwindow.storageが使えるが、
+  // ダウンロードしたHTMLを単体で開いた場合など、window.storageが存在しない環境では
+  // 代わりにlocalStorageを使う（無いとセーブ/ロードが毎回静かに失敗し、
+  // リロードのたびに最初からになってしまうため）
+  const hasArtifactStorage = (typeof window.storage !== "undefined" && typeof window.storage.get === "function");
+
+  async function storageGet(key){
+    if(hasArtifactStorage){
+      return await window.storage.get(key, false);
+    }
+    const raw = localStorage.getItem(key);
+    if(raw === null) throw new Error("key not found: " + key);
+    return { key:key, value:raw, shared:false };
+  }
+
+  async function storageSet(key, value){
+    if(hasArtifactStorage){
+      return await window.storage.set(key, value, false);
+    }
+    localStorage.setItem(key, value);
+    return { key:key, value:value, shared:false };
+  }
+
   const INITIAL_CAP = 50;
   const CAP_STEP = 50;
   const SELL_ENERGY_PER_PARTICLE = 1;
@@ -3680,7 +3703,7 @@
   // ============ セーブ / ロード ============
   async function save(){
     try{
-      await window.storage.set(SAVE_KEY, JSON.stringify(state), false);
+      await storageSet(SAVE_KEY, JSON.stringify(state));
     }catch(err){
       console.error("Save failed:", err);
     }
@@ -3853,7 +3876,7 @@
 
   async function load(){
     try{
-      const result = await window.storage.get(SAVE_KEY, false);
+      const result = await storageGet(SAVE_KEY);
       if(result && result.value){
         applyLoadedData(JSON.parse(result.value));
       }
@@ -3969,7 +3992,7 @@
     el.substancesGrid.innerHTML = "";
     el.substanceCapList.innerHTML = "";
     try{
-      await window.storage.set(SAVE_KEY, JSON.stringify(state), false);
+      await storageSet(SAVE_KEY, JSON.stringify(state));
     }catch(err){
       console.error("Reset save failed:", err);
     }
