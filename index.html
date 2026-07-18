@@ -573,6 +573,22 @@
     box-shadow:inset 0 0 0 7px rgba(160,170,190,0.07), 0 4px 32px rgba(0,0,0,0.5);
   }
   #settingsOverlay .modal h2{ color:#9AA4B8; }
+  .kofi-btn{
+    display:block;
+    text-align:center;
+    background:rgba(255,94,30,0.12);
+    border:1px solid rgba(255,94,30,0.45);
+    color:#FF7040;
+    border-radius:10px;
+    padding:10px;
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:0.04em;
+    text-decoration:none;
+    margin-bottom:10px;
+    transition:background 0.15s, border-color 0.15s;
+  }
+  .kofi-btn:active{ background:rgba(255,94,30,0.22); }
   #sellOverlay .modal{
     background-color:#050C06;
     background-image:
@@ -1383,6 +1399,7 @@
       <button class="modal-close danger-btn" id="resetBtn" style="width:auto; padding:6px 12px; margin:0;" data-i18n="reset_btn">リセット</button>
     </div>
 
+    <a class="kofi-btn" href="https://ko-fi.com/mulabs" target="_blank" rel="noopener noreferrer" data-i18n="kofi_btn">☕ コーヒーをおごる</a>
     <button class="modal-close" id="closeSettings" data-i18n="close_btn">閉じる</button>
   </div>
 </div>
@@ -1981,7 +1998,8 @@
       import_error:"セーブデータの読み込みに失敗しました。ファイルが壊れているか、対応していない形式です。",
       reset_btn:"リセット",
       close_btn:"閉じる",
-      reset_confirm:"本当にセーブデータをリセットしますか？この操作は取り消せません。"
+      reset_confirm:"本当にセーブデータをリセットしますか？この操作は取り消せません。",
+      kofi_btn:"☕ コーヒーをおごる"
     },
     en:{
       proton_label:"Protons",
@@ -2135,7 +2153,8 @@
       import_error:"Failed to load save data. The file may be corrupted or in an unsupported format.",
       reset_btn:"Reset",
       close_btn:"Close",
-      reset_confirm:"Reset all save data? This cannot be undone."
+      reset_confirm:"Reset all save data? This cannot be undone.",
+      kofi_btn:"☕ Buy me a coffee"
     }
   };
 
