@@ -914,6 +914,7 @@
     </div>
     <div class="header-right">
       <span class="energy-badge display-font" id="energyBadge">⚡0</span>
+      <button class="icon-btn" id="saveBtn">💾</button>
       <button class="icon-btn" id="settingsBtn">⚙</button>
     </div>
   </header>
@@ -1255,6 +1256,7 @@
       unlock_toast_molecules:"分子タブが解放された",
       unlock_toast_substances:"物質タブが解放された",
       unlock_toast_solar:"太陽系タブが解放された",
+      save_toast:"保存しました",
       research_deliver_btn:"納品",
       research_complete_label:"解放済み",
       tutorial_produce_proton:"ボタンをタップし陽子を50個生産してください。",
@@ -1395,6 +1397,7 @@
       unlock_toast_molecules:"Molecules tab unlocked",
       unlock_toast_substances:"Substances tab unlocked",
       unlock_toast_solar:"Solar System tab unlocked",
+      save_toast:"Saved",
       research_deliver_btn:"Deliver",
       research_complete_label:"Unlocked",
       tutorial_produce_proton:"Tap the button to produce 50 protons.",
@@ -2131,6 +2134,7 @@
     transportSlotsValue:document.getElementById("transportSlotsValue"),
     transportSlotsBtn:document.getElementById("transportSlotsBtn"),
     transportQueueList:document.getElementById("transportQueueList"),
+    saveBtn:document.getElementById("saveBtn"),
     settingsBtn:document.getElementById("settingsBtn"),
     settingsTitle:document.getElementById("settingsTitle"),
     settingsOverlay:document.getElementById("settingsOverlay"),
@@ -4013,6 +4017,14 @@
   el.tapPowerBtnProton.addEventListener("click", ()=>buyTapPower("proton"));
   el.tapPowerBtnElectron.addEventListener("click", ()=>buyTapPower("electron"));
   el.tapPowerBtnNeutron.addEventListener("click", ()=>buyTapPower("neutron"));
+
+  el.saveBtn.addEventListener("click", async ()=>{
+    await save();
+    const dict = STRINGS[state.lang];
+    el.unlockToast.textContent = dict.save_toast;
+    el.unlockToast.classList.add("show");
+    setTimeout(()=>{ el.unlockToast.classList.remove("show"); }, 2000);
+  });
 
   el.settingsBtn.addEventListener("click", ()=>{
     el.settingsOverlay.classList.add("open");
