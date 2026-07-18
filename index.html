@@ -2375,13 +2375,13 @@
   function renderTapPowerRow(key, levelEl, btnEl){
     const bonus = state.tapPowerLevel[key] * TAP_POWER_STEP;
     levelEl.textContent = "+" + bonus.toFixed(1);
-    btnEl.innerHTML = "+" + TAP_POWER_STEP.toFixed(1) + " (⚡" + tapPowerCost() + ")";
+    btnEl.innerHTML = "+" + TAP_POWER_STEP.toFixed(1) + " (⚡" + tapPowerCost(key) + ")";
   }
 
   function renderCraftTapPowerRow(key, levelEl, btnEl){
     const level = state.craftTapPowerLevel[key] || 0;
     levelEl.textContent = "×" + (1 + level);
-    btnEl.innerHTML = "+1 (⚡" + TAP_POWER_COST + ")";
+    btnEl.innerHTML = "+1 (⚡" + craftTapPowerCost(key) + ")";
   }
 
   // ============ 元素合成グリッド ============
@@ -2667,15 +2667,22 @@
     save();
   }
 
-  const TAP_POWER_COST = 50; // エネルギー（レベルによらず固定）
+  const TAP_POWER_BASE_COST = 30; // Lv0→1のコスト
+  const TAP_POWER_GROWTH = 1.5;  // レベルごとの倍率（Lv7〜8あたりで自動生産機と逆転）
   const TAP_POWER_STEP = 0.1; // 1レベルあたりのタップ生産量増加
 
-  function tapPowerCost(){
-    return TAP_POWER_COST;
+  function tapPowerCost(key){
+    const level = state.tapPowerLevel[key] || 0;
+    return Math.round(TAP_POWER_BASE_COST * Math.pow(TAP_POWER_GROWTH, level));
+  }
+
+  function craftTapPowerCost(key){
+    const level = state.craftTapPowerLevel[key] || 0;
+    return Math.round(TAP_POWER_BASE_COST * Math.pow(TAP_POWER_GROWTH, level));
   }
 
   function buyTapPower(key){
-    const cost = tapPowerCost();
+    const cost = tapPowerCost(key);
     if(!debugMode){
       if(state.energy < cost) return;
       state.energy -= cost;
@@ -2686,9 +2693,10 @@
   }
 
   function buyCraftTapPower(key){
+    const cost = craftTapPowerCost(key);
     if(!debugMode){
-      if(state.energy < TAP_POWER_COST) return;
-      state.energy -= TAP_POWER_COST;
+      if(state.energy < cost) return;
+      state.energy -= cost;
     }
     state.craftTapPowerLevel[key] += 1;
     render();
