@@ -1203,6 +1203,11 @@
       <span class="cap-value display-font" id="transportSlotsValue">1</span>
       <button class="cap-expand-btn display-font" id="transportSlotsBtn"></button>
     </div>
+    <div class="cap-row">
+      <span class="cap-name" data-i18n="transport_queue_cap_label">待機物資数</span>
+      <span class="cap-value display-font" id="transportQueueCapValue">50</span>
+      <button class="cap-expand-btn display-font" id="transportQueueCapBtn"></button>
+    </div>
 
     <div class="modal-section-title" data-i18n="solar_queue_label">輸送キュー</div>
     <div id="transportQueueList"></div>
@@ -1365,6 +1370,7 @@
       solar_queue_label:"輸送キュー",
       transport_speed_label:"輸送速度",
       transport_slots_label:"同時輸送数",
+      transport_queue_cap_label:"待機物資数",
       requirement_load_btn:"投入",
       requirement_complete_label:"完成",
       queue_slot_empty:"空き枠",
@@ -1509,6 +1515,7 @@
       solar_queue_label:"Transport Queue",
       transport_speed_label:"Transport Speed",
       transport_slots_label:"Simultaneous Slots",
+      transport_queue_cap_label:"Queue Capacity",
       requirement_load_btn:"Load",
       requirement_complete_label:"Complete",
       queue_slot_empty:"Empty slot",
@@ -1924,11 +1931,13 @@
   const AUTO_PRODUCER_POWER_DRAW = 1; // MW（1台あたり）
 
   // ============ 送出装置（太陽系構築） ============
-  const QUEUE_SLOT_CAPACITY = 50; // 1枠あたりの輸送待ち上限
+  const QUEUE_SLOT_CAPACITY = 50; // 1枠あたりの輸送待ち上限（初期値）
+  const QUEUE_SLOT_CAPACITY_STEP = 50; // 1レベルあたりの増加量
   const TRANSPORT_SPEED_BASE = 1; // 個/秒（初期）
   const TRANSPORT_SLOTS_BASE = 1; // 同時輸送数（初期）
   const TRANSPORT_SPEED_CONFIG = { baseCost:80, growth:1.7 };
   const TRANSPORT_SLOTS_CONFIG = { baseCost:300, growth:2.0 };
+  const TRANSPORT_QUEUE_CAP_CONFIG = { baseCost:150, growth:1.8 };
 
   // ============ リワード広告（モック） ============
   const REWARD_AD_AMOUNT = 50; // 視聴で獲得できる個数
@@ -2119,8 +2128,10 @@
     galaxyProgress:new Array(GALAXY_REQUIREMENTS.length).fill(0),
     transportSpeedLevel:0,
     transportSlotsLevel:0,
+    transportQueueCapLevel:0,
     transportSpeed:TRANSPORT_SPEED_BASE,
     transportSlots:TRANSPORT_SLOTS_BASE,
+    transportQueueCap:QUEUE_SLOT_CAPACITY,
     transportQueue:new Array(TRANSPORT_SLOTS_BASE).fill(null).map(function(){ return { reqIndex:null, remaining:0 }; }),
     lang:"ja"
   };
@@ -2193,6 +2204,8 @@
     transportSpeedBtn:document.getElementById("transportSpeedBtn"),
     transportSlotsValue:document.getElementById("transportSlotsValue"),
     transportSlotsBtn:document.getElementById("transportSlotsBtn"),
+    transportQueueCapValue:document.getElementById("transportQueueCapValue"),
+    transportQueueCapBtn:document.getElementById("transportQueueCapBtn"),
     transportQueueList:document.getElementById("transportQueueList"),
     saveBtn:document.getElementById("saveBtn"),
     settingsBtn:document.getElementById("settingsBtn"),
@@ -3312,6 +3325,22 @@
     save();
   }
 
+  function transportQueueCapCost(){
+    return Math.round(TRANSPORT_QUEUE_CAP_CONFIG.baseCost * Math.pow(TRANSPORT_QUEUE_CAP_CONFIG.growth, state.transportQueueCapLevel));
+  }
+
+  function expandTransportQueueCap(){
+    const cost = transportQueueCapCost();
+    if(!debugMode){
+      if(state.energy < cost) return;
+      state.energy -= cost;
+    }
+    state.transportQueueCap += QUEUE_SLOT_CAPACITY_STEP;
+    state.transportQueueCapLevel += 1;
+    render();
+    save();
+  }
+
   // 現在の輸送対象の特定の必要物資を、空いている輸送枠（または同じ物資を積んでいる枠）に投入する
   function loadQueueSlot(reqIndex){
     const requirements = getActiveRequirements();
@@ -3329,7 +3358,7 @@
       slot.reqIndex = reqIndex;
     }
 
-    const roomInSlot = QUEUE_SLOT_CAPACITY - slot.remaining;
+    const roomInSlot = state.transportQueueCap - slot.remaining;
     const stillNeeded = target - already - slot.remaining;
     const available = debugMode ? Infinity : requirementStock(input);
     const amount = Math.max(0, Math.min(roomInSlot, stillNeeded, available));
@@ -3580,6 +3609,8 @@
     el.transportSpeedBtn.innerHTML = "+1 (⚡" + transportSpeedCost() + ")";
     el.transportSlotsValue.textContent = state.transportSlots;
     el.transportSlotsBtn.innerHTML = "+1 (⚡" + transportSlotsCost() + ")";
+    el.transportQueueCapValue.textContent = state.transportQueueCap;
+    el.transportQueueCapBtn.innerHTML = "+" + QUEUE_SLOT_CAPACITY_STEP + " (⚡" + transportQueueCapCost() + ")";
 
     let queueHtml = "";
     state.transportQueue.forEach(function(slot){
@@ -3974,6 +4005,12 @@
     } else if(state.transportQueue.length > state.transportSlots){
       state.transportQueue = state.transportQueue.slice(0, state.transportSlots);
     }
+    if(typeof state.transportQueueCapLevel !== "number" || state.transportQueueCapLevel < 0){
+      state.transportQueueCapLevel = 0;
+    }
+    if(typeof state.transportQueueCap !== "number" || state.transportQueueCap < QUEUE_SLOT_CAPACITY){
+      state.transportQueueCap = QUEUE_SLOT_CAPACITY + state.transportQueueCapLevel * QUEUE_SLOT_CAPACITY_STEP;
+    }
   }
 
   // 旧セーブ形式からの移行対応を含めて、読み込んだデータをstateへ反映する（load()・インポート機能で共用）
@@ -4126,8 +4163,10 @@
       galaxyProgress:new Array(GALAXY_REQUIREMENTS.length).fill(0),
       transportSpeedLevel:0,
       transportSlotsLevel:0,
+      transportQueueCapLevel:0,
       transportSpeed:TRANSPORT_SPEED_BASE,
       transportSlots:TRANSPORT_SLOTS_BASE,
+      transportQueueCap:QUEUE_SLOT_CAPACITY,
       transportQueue:new Array(TRANSPORT_SLOTS_BASE).fill(null).map(function(){ return { reqIndex:null, remaining:0 }; }),
       lang:state.lang
     };
@@ -4278,6 +4317,7 @@
   });
   el.transportSpeedBtn.addEventListener("click", expandTransportSpeed);
   el.transportSlotsBtn.addEventListener("click", expandTransportSlots);
+  el.transportQueueCapBtn.addEventListener("click", expandTransportQueueCap);
 
   el.langJa.addEventListener("click", ()=>{
     state.lang = "ja";
