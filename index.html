@@ -3185,9 +3185,19 @@
       const owned = state.generatorOwned[type];
       const active = Math.min(state.generatorActive[type] || 0, owned);
       const intervalLabel = config.fuelIntervalTicks > 1 ? " /" + config.fuelIntervalTicks + "s" : " /s";
+      let timerText = "";
+      if(config.fuel.length > 0 && active > 0){
+        const timers = state.generatorUnitTimers[type] || [];
+        const parts = [];
+        for(let k = 0; k < active; k++){
+          const t = timers[k] !== undefined ? timers[k] : 0;
+          parts.push(t + "s");
+        }
+        timerText = ' <span style="color:var(--text-dim);font-size:10px;">[' + parts.join(", ") + ']</span>';
+      }
       const fuelText = config.fuel.length === 0
         ? dict.generator_no_fuel_label
-        : dict.generator_fuel_label + ": " + generatorCostHtml(config.fuel) + (config.fuelAlt ? '<span class="recipe-plus">/</span>' + generatorCostHtml(config.fuelAlt) : "") + intervalLabel;
+        : dict.generator_fuel_label + ": " + generatorCostHtml(config.fuel) + (config.fuelAlt ? '<span class="recipe-plus">/</span>' + generatorCostHtml(config.fuelAlt) : "") + intervalLabel + timerText;
       html +=
         '<div class="generator-card">' +
           '<div class="generator-card-header">' +
