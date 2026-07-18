@@ -50,9 +50,9 @@
   #bgCanvas{position:fixed;inset:0;z-index:0;pointer-events:none;}
   header{
     display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding:16px 18px 10px;
+    flex-direction:column;
+    gap:8px;
+    padding:14px 18px 10px;
     border-bottom:1px solid var(--border);
   }
   .warehouse-tab{
@@ -77,7 +77,12 @@
     50%{ box-shadow:0 0 10px rgba(255,209,102,0.7); border-color:#FFD166; }
     100%{ box-shadow:0 0 0 rgba(255,209,102,0); border-color:var(--border); }
   }
-  .header-left{
+  .header-row-ctrl{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .header-row-tabs{
     display:flex;
     align-items:center;
     gap:8px;
@@ -85,11 +90,11 @@
     scrollbar-width:none;
     -ms-overflow-style:none;
   }
-  .header-left::-webkit-scrollbar{ display:none; }
+  .header-row-tabs::-webkit-scrollbar{ display:none; }
   .warehouse-tab{
     flex-shrink:0;
   }
-  .header-right{
+  .header-ctrl-icons{
     display:flex;
     align-items:center;
     gap:10px;
@@ -1136,16 +1141,18 @@
 <canvas id="particleCanvas"></canvas>
 <div id="app">
   <header>
-    <div class="header-left">
+    <div class="header-row-ctrl">
+      <span class="energy-badge display-font" id="energyBadge">⚡0</span>
+      <div class="header-ctrl-icons">
+        <button class="icon-btn" id="saveBtn">💾</button>
+        <button class="icon-btn" id="settingsBtn">⚙</button>
+      </div>
+    </div>
+    <div class="header-row-tabs">
       <button class="warehouse-tab" id="researchTabBtn" data-i18n="research_tab">研究</button>
       <button class="warehouse-tab locked" id="warehouseTabBtn" data-i18n="warehouse_tab">強化</button>
       <button class="warehouse-tab locked" id="powerTabBtn" data-i18n="power_tab">発電</button>
       <button class="warehouse-tab locked" id="solarTabBtn" data-i18n="solar_tab">太陽系</button>
-    </div>
-    <div class="header-right">
-      <span class="energy-badge display-font" id="energyBadge">⚡0</span>
-      <button class="icon-btn" id="saveBtn">💾</button>
-      <button class="icon-btn" id="settingsBtn">⚙</button>
     </div>
   </header>
 
