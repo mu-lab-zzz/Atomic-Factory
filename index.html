@@ -983,37 +983,39 @@
     100%{opacity:0;}
   }
 
-  /* ── エフェクト: 発電機アニメーションボーダー ── */
-  .gen-active-wrap{
-    position:relative;
-    border-radius:14px;
-    padding:2px;
-    overflow:hidden;
+  /* ── エフェクト: 発電機 光走査ボーダー ── */
+  .gen-active-wrap{position:relative;border-radius:14px;padding:2px;}
+  .gen-active-wrap .generator-card{border-color:transparent;border-radius:10px;margin-bottom:0;}
+  .gen-border-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;}
+  .gen-border-track{fill:none;stroke-width:1;}
+  .gen-border-dot{
+    fill:none;stroke-width:2.5;stroke-linecap:round;
+    stroke-dasharray:60 940;
+    animation:genBorderTravel linear infinite;
   }
-  .gen-active-spin{
-    position:absolute;
-    inset:0;
-    border-radius:14px;
-    overflow:hidden;
+  .gen-border-dot2{
+    fill:none;stroke-width:2;stroke-linecap:round;
+    stroke-dasharray:45 955;
+    animation:genBorderTravel linear infinite;
+    display:none;
   }
-  .gen-active-spin::before{
-    content:'';
-    position:absolute;
-    width:200%;height:200%;
-    top:-50%;left:-50%;
-    animation:genBorderSpin 2.4s linear infinite;
-  }
-  .gen-coal-active   .gen-active-spin::before{background:conic-gradient(from 0deg,#FF8C00 0deg,#FFD166 70deg,rgba(255,140,0,0.05) 130deg,rgba(255,140,0,0) 260deg,#FF8C00 360deg);}
-  .gen-oil-active    .gen-active-spin::before{background:conic-gradient(from 0deg,#C8A258 0deg,#F5D78E 70deg,rgba(200,162,88,0.05) 130deg,rgba(200,162,88,0) 260deg,#C8A258 360deg);}
-  .gen-solar-active  .gen-active-spin::before{background:conic-gradient(from 0deg,#FFE566 0deg,#FFFFFF 90deg,#FFE566 170deg,rgba(255,229,102,0.03) 220deg,rgba(255,229,102,0) 330deg,#FFE566 360deg);animation-duration:3.5s;}
-  .gen-fission-active .gen-active-spin::before{background:conic-gradient(from 0deg,#7AFF6E 0deg,#ADFFAA 80deg,rgba(122,255,110,0.04) 150deg,rgba(122,255,110,0) 280deg,#7AFF6E 360deg);animation-duration:2s;}
-  .gen-fusion-active .gen-active-spin::before{background:conic-gradient(from 0deg,#4FD1C5 0deg,#E85D9E 90deg,#4FD1C5 180deg,#E85D9E 270deg,#4FD1C5 360deg);animation-duration:1.8s;}
-  @keyframes genBorderSpin{to{transform:rotate(360deg);}}
-  .gen-active-wrap .generator-card{
-    border-color:transparent;
-    border-radius:10px;
-    margin-bottom:0;
-  }
+  @keyframes genBorderTravel{from{stroke-dashoffset:0;}to{stroke-dashoffset:-1000;}}
+  /* coal: 石炭 — オレンジ炎 */
+  .gen-coal-active    .gen-border-track{stroke:rgba(255,140,0,0.18);}
+  .gen-coal-active    .gen-border-dot{stroke:#FF8C00;filter:drop-shadow(0 0 4px #FF8C00);animation-duration:2.4s;}
+  /* oil: 石油 — アンバー */
+  .gen-oil-active     .gen-border-track{stroke:rgba(200,162,88,0.18);}
+  .gen-oil-active     .gen-border-dot{stroke:#C8A258;filter:drop-shadow(0 0 4px #C8A258);animation-duration:2.8s;}
+  /* solar: 太陽光 — 明黄色 */
+  .gen-solar-active   .gen-border-track{stroke:rgba(255,229,102,0.18);}
+  .gen-solar-active   .gen-border-dot{stroke:#FFE566;filter:drop-shadow(0 0 5px rgba(255,229,102,0.85));animation-duration:4.0s;}
+  /* fission: 核分裂 — 放射グリーン */
+  .gen-fission-active .gen-border-track{stroke:rgba(122,255,110,0.18);}
+  .gen-fission-active .gen-border-dot{stroke:#7AFF6E;filter:drop-shadow(0 0 5px #7AFF6E);animation-duration:1.6s;}
+  /* fusion: 核融合 — シアン+ピンク 2点 */
+  .gen-fusion-active  .gen-border-track{stroke:rgba(79,209,197,0.18);}
+  .gen-fusion-active  .gen-border-dot{stroke:#4FD1C5;filter:drop-shadow(0 0 6px #4FD1C5);animation-duration:1.3s;}
+  .gen-fusion-active  .gen-border-dot2{display:block;stroke:#E85D9E;filter:drop-shadow(0 0 6px #E85D9E);animation-duration:1.3s;animation-delay:-0.65s;}
 
   /* ── エフェクト: 元素 軌道リング ── */
   .el-craft-ring{
@@ -1031,7 +1033,7 @@
   }
 
   @media(prefers-reduced-motion:reduce){
-    .gen-active-spin::before{animation:none!important;}
+    .gen-border-dot,.gen-border-dot2{animation:none!important;}
     .float-ep,.unlock-ripple,.unlock-flash,.el-craft-ring{animation:none!important;}
   }
 </style>
@@ -3091,7 +3093,12 @@
       const fuelText = config.fuel.length === 0
         ? dict.generator_no_fuel_label
         : dict.generator_fuel_label + ": " + generatorCostHtml(config.fuel) + (config.fuelAlt ? '<span class="recipe-plus">/</span>' + generatorCostHtml(config.fuelAlt) : "") + intervalLabel;
-      const wrapOpen  = owned > 0 ? '<div class="gen-active-wrap gen-' + type + '-active"><div class="gen-active-spin"></div>' : '';
+      const _bsvg = '<svg class="gen-border-svg" aria-hidden="true">'
+        + '<rect class="gen-border-track" x="1" y="1" rx="13" pathLength="1000" style="width:calc(100% - 2px);height:calc(100% - 2px)"></rect>'
+        + '<rect class="gen-border-dot"   x="1" y="1" rx="13" pathLength="1000" style="width:calc(100% - 2px);height:calc(100% - 2px)"></rect>'
+        + '<rect class="gen-border-dot2"  x="1" y="1" rx="13" pathLength="1000" style="width:calc(100% - 2px);height:calc(100% - 2px)"></rect>'
+        + '</svg>';
+      const wrapOpen  = owned > 0 ? '<div class="gen-active-wrap gen-' + type + '-active">' + _bsvg : '';
       const wrapClose = owned > 0 ? '</div>' : '';
       html +=
         wrapOpen +
