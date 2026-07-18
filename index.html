@@ -338,11 +338,39 @@
     cursor:pointer;
     white-space:nowrap;
   }
-  .sell-toggle-btn.active{
-    background:rgba(255,209,102,0.15);
-    border-color:#FFD166;
-    color:#FFD166;
+  .sell-row{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    padding:10px 0;
+    border-bottom:1px solid var(--border);
   }
+  .sell-row:last-of-type{ border-bottom:none; }
+  .sell-row-info{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+  }
+  .sell-row-name{ font-weight:600; flex:1; }
+  .sell-row-stock{ color:var(--text-dim); font-size:12px; }
+  .sell-row-price{ color:#FFD166; font-size:12px; }
+  .sell-row-btns{
+    display:flex;
+    gap:6px;
+  }
+  .sell-qty-btn{
+    flex:1;
+    padding:7px 0;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:var(--bg-main);
+    color:var(--text);
+    font-size:12px;
+    cursor:pointer;
+  }
+  .sell-qty-btn:active{ background:var(--bg-panel-hi); }
+  .sell-qty-btn:disabled{ opacity:0.35; cursor:not-allowed; }
   .elements-grid{
     display:grid;
     grid-template-columns:repeat(3, 1fr);
@@ -1186,6 +1214,14 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="sellOverlay">
+  <div class="modal scrollable-modal">
+    <h2 data-i18n="sell_modal_title">売却</h2>
+    <div id="sellList"></div>
+    <button class="modal-close" id="closeSell" data-i18n="close_btn">閉じる</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="rewardAdPlayingOverlay">
   <div class="modal reward-ad-modal">
     <div class="reward-ad-icon">▶</div>
@@ -1322,8 +1358,11 @@
       all_bodies_complete_toast:"太陽系が完成しました！",
       galaxy_label:"銀河生成",
       galaxy_complete_toast:"銀河が完成しました！？？！",
-      sell_mode_btn:"売却モード",
-      sell_mode_btn_active:"売却モード中",
+      sell_mode_btn:"売却",
+      sell_modal_title:"売却",
+      sell_btn_all:"全売却",
+      sell_empty:"売却できる元素がありません",
+      sell_per_unit:"/個",
       unlock_toast_element:"{name}の生成が解放された",
       footer_text:"タップで素粒子を生成し、元素の世界へ",
       settings_title:"設定",
@@ -1463,8 +1502,11 @@
       all_bodies_complete_toast:"The Solar System is complete!",
       galaxy_label:"Galaxy Formation",
       galaxy_complete_toast:"The galaxy is complete?!",
-      sell_mode_btn:"Sell Mode",
-      sell_mode_btn_active:"Sell Mode: ON",
+      sell_mode_btn:"Sell",
+      sell_modal_title:"Sell",
+      sell_btn_all:"All",
+      sell_empty:"No elements to sell",
+      sell_per_unit:" ea",
       unlock_toast_element:"{name} generation unlocked",
       footer_text:"Tap to generate particles and build the elements",
       settings_title:"Settings",
@@ -2067,7 +2109,6 @@
     lang:"ja"
   };
 
-  let sellMode = false; // 売却モードのON/OFF（保存不要のUI状態）
   let debugMode = false; // デバッグモード: ONの間は全ての消費・上限チェックをバイパスする（保存不要のUI状態）
   // 【今後の実装ルール】新しく「生成/購入/拡張」する機能を追加する場合、
   // 判定・消費処理の先頭を `if(!debugMode){ ...在庫チェック・消費... }` の形にすること。
@@ -2082,6 +2123,9 @@
     elementsSection:document.getElementById("elementsSection"),
     elementsGrid:document.getElementById("elementsGrid"),
     sellModeBtn:document.getElementById("sellModeBtn"),
+    sellOverlay:document.getElementById("sellOverlay"),
+    sellList:document.getElementById("sellList"),
+    closeSell:document.getElementById("closeSell"),
     protonBtn:document.getElementById("protonBtn"),
     electronBtn:document.getElementById("electronBtn"),
     neutronBtn:document.getElementById("neutronBtn"),
@@ -2176,7 +2220,7 @@
     el.langJa.classList.toggle("active", state.lang === "ja");
     el.langEn.classList.toggle("active", state.lang === "en");
     document.documentElement.lang = state.lang;
-    el.sellModeBtn.textContent = sellMode ? dict.sell_mode_btn_active : dict.sell_mode_btn;
+    el.sellModeBtn.textContent = dict.sell_mode_btn;
     updateElementNames();
     updateMoleculeNames();
     updateSubstanceNames();
@@ -2387,7 +2431,7 @@
         buildCostHtml(i) +
       '</div>';
     card.addEventListener("click", function(){
-      if(sellMode){ sellElement(i); } else { craftElement(i); }
+      craftElement(i);
     });
     return card;
   }
@@ -2455,23 +2499,56 @@
   }
 
   function sellElement(i){
-    const data = ELEMENT_TABLE[i];
-    if(state.elementCounts[i] <= 0) return;
-    state.elementCounts[i] -= 1;
-    const totalParticles = data.protons + data.electrons + data.neutrons;
-    const atomicNumberBonus = 1 + i * 0.01; // 原子番号（index）が1進むごとに+1%
-    state.energy += totalParticles * SELL_ENERGY_PER_PARTICLE * atomicNumberBonus;
-    render();
-    save();
-    const card = document.getElementById("elementCard" + i);
-    if(card) flashBox(card, "flash");
   }
 
-  function toggleSellMode(){
-    sellMode = !sellMode;
-    el.sellModeBtn.classList.toggle("active", sellMode);
+  function elementSellPrice(i){
+    const data = ELEMENT_TABLE[i];
+    const totalParticles = data.protons + data.electrons + data.neutrons;
+    return totalParticles * SELL_ENERGY_PER_PARTICLE * (1 + i * 0.01);
+  }
+
+  function sellElement(i, qty){
+    const count = state.elementCounts[i];
+    const n = qty === "all" ? count : Math.min(qty, count);
+    if(n <= 0) return;
+    state.elementCounts[i] -= n;
+    state.energy += elementSellPrice(i) * n;
+    renderSellModal();
+    render();
+    save();
+  }
+
+  function renderSellModal(){
     const dict = STRINGS[state.lang];
-    el.sellModeBtn.textContent = sellMode ? dict.sell_mode_btn_active : dict.sell_mode_btn;
+    let html = "";
+    for(let i = 0; i < state.elementsUnlockedCount; i++){
+      const data = ELEMENT_TABLE[i];
+      const count = state.elementCounts[i];
+      const price = elementSellPrice(i);
+      const priceStr = parseFloat(price.toFixed(2));
+      const color = elementTextColor(i);
+      const disabled = count <= 0 ? " disabled" : "";
+      html +=
+        '<div class="sell-row">' +
+          '<div class="sell-row-info">' +
+            '<span class="sell-row-name" style="color:' + color + '">' + elementName(data) + '</span>' +
+            '<span class="sell-row-stock">×' + count + '</span>' +
+            '<span class="sell-row-price">⚡' + priceStr + dict.sell_per_unit + '</span>' +
+          '</div>' +
+          '<div class="sell-row-btns">' +
+            '<button class="sell-qty-btn" data-si="' + i + '" data-qty="1"' + disabled + '>×1</button>' +
+            '<button class="sell-qty-btn" data-si="' + i + '" data-qty="10"' + disabled + '>×10</button>' +
+            '<button class="sell-qty-btn" data-si="' + i + '" data-qty="all"' + disabled + '>' + dict.sell_btn_all + '</button>' +
+          '</div>' +
+        '</div>';
+    }
+    if(!html) html = '<p class="help-text">' + dict.sell_empty + '</p>';
+    el.sellList.innerHTML = html;
+  }
+
+  function openSellModal(){
+    renderSellModal();
+    el.sellOverlay.classList.add("open");
   }
 
   // ============ インベントリ上限拡張 ============
@@ -3983,8 +4060,7 @@
       transportQueue:new Array(TRANSPORT_SLOTS_BASE).fill(null).map(function(){ return { reqIndex:null, remaining:0 }; }),
       lang:state.lang
     };
-    sellMode = false;
-    el.sellModeBtn.classList.remove("active");
+    el.sellOverlay.classList.remove("open");
     el.elementsGrid.innerHTML = "";
     el.elementCapList.innerHTML = "";
     el.moleculesGrid.innerHTML = "";
@@ -4003,7 +4079,15 @@
   el.protonBtn.addEventListener("click", tapProton);
   el.electronBtn.addEventListener("click", tapElectron);
   el.neutronBtn.addEventListener("click", tapNeutron);
-  el.sellModeBtn.addEventListener("click", toggleSellMode);
+  el.sellModeBtn.addEventListener("click", openSellModal);
+  el.closeSell.addEventListener("click", ()=>{ el.sellOverlay.classList.remove("open"); });
+  el.sellList.addEventListener("click", function(e){
+    const btn = e.target.closest(".sell-qty-btn");
+    if(!btn || btn.disabled) return;
+    const i = parseInt(btn.dataset.si, 10);
+    const qty = btn.dataset.qty === "all" ? "all" : parseInt(btn.dataset.qty, 10);
+    sellElement(i, qty);
+  });
   el.protonCapBtn.addEventListener("click", ()=>expandCap("proton"));
   el.electronCapBtn.addEventListener("click", ()=>expandCap("electron"));
   el.neutronCapBtn.addEventListener("click", ()=>expandCap("neutron"));
