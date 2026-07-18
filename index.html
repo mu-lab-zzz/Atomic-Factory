@@ -3334,13 +3334,9 @@
     const stock = target.kind === "element" ? state.elementCounts
       : target.kind === "molecule" ? state.moleculeCounts
       : state.substanceCounts;
-    const cap = target.kind === "element" ? state.elementCaps[target.index]
-      : target.kind === "molecule" ? state.moleculeCaps[target.index]
-      : state.substanceCaps[target.index];
-    const amount = Math.max(0, Math.min(REWARD_AD_AMOUNT, cap - stock[target.index]));
-    stock[target.index] += amount;
+    stock[target.index] += REWARD_AD_AMOUNT;
     state.rewardAdCooldownRemaining = REWARD_AD_COOLDOWN_SECONDS;
-    showUnlockToastText(dict.reward_ad_granted_text.replace(/{name}/g, rewardTargetLabel(target)).replace("{amount}", amount));
+    showUnlockToastText(dict.reward_ad_granted_text.replace(/{name}/g, rewardTargetLabel(target)).replace("{amount}", REWARD_AD_AMOUNT));
     render();
     save();
   }
@@ -3488,13 +3484,13 @@
     const amount = isManualTap ? 1 + (state.tapPowerLevel[key] || 0) * 0.1 : 1;
     if(key === "proton"){
       if(!debugMode && state.protons >= state.protonCap) return false;
-      state.protons += amount;
+      state.protons = Math.min(state.protons + amount, state.protonCap);
       return true;
     }
     if(key === "electron"){
       if(!state.electronUnlocked) return false;
       if(!debugMode && state.electrons >= state.electronCap) return false;
-      state.electrons += amount;
+      state.electrons = Math.min(state.electrons + amount, state.electronCap);
       return true;
     }
     if(key === "neutron"){
@@ -3505,7 +3501,7 @@
         state.protons -= 1;
         state.electrons -= 1;
       }
-      state.neutrons += amount;
+      state.neutrons = Math.min(state.neutrons + amount, state.neutronCap);
       return true;
     }
     return false;
