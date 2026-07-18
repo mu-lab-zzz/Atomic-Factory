@@ -741,6 +741,44 @@
     border-top:1px dashed var(--border);
     margin-top:6px;
   }
+  /* ── 発電機 個別ON/OFFトグルボタン ── */
+  .gen-toggle-btn{
+    background:var(--bg-main);
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    border-radius:12px;
+    padding:2px 10px;
+    font-size:11px;
+    cursor:pointer;
+    transition:background 0.15s,border-color 0.15s,color 0.15s;
+  }
+  .gen-toggle-btn.gen-on{
+    background:rgba(60,200,100,0.12);
+    border-color:rgba(60,200,100,0.65);
+    color:rgb(45,170,80);
+  }
+  .gen-toggle-btn:active{ opacity:0.65; }
+  /* ── 発電機カード 稼働状態アニメーション ── */
+  @keyframes gen-pulse-run{
+    0%,100%{ box-shadow:0 0 0 0 rgba(60,200,100,0); border-color:rgba(60,200,100,0.45); }
+    50%{ box-shadow:0 0 0 5px rgba(60,200,100,0.1); border-color:rgba(60,200,100,0.9); }
+  }
+  @keyframes gen-pulse-starve{
+    0%,100%{ box-shadow:0 0 0 0 rgba(230,60,60,0); border-color:rgba(230,60,60,0.5); }
+    50%{ box-shadow:0 0 0 4px rgba(230,60,60,0.18); border-color:rgba(230,60,60,0.9); }
+  }
+  .generator-card.gen-running{
+    border-color:rgba(60,200,100,0.45);
+    animation:gen-pulse-run 2.4s ease-in-out infinite;
+  }
+  .generator-card.gen-starved{
+    border-color:rgba(230,60,60,0.5);
+    animation:gen-pulse-starve 0.55s ease-in-out infinite;
+  }
+  @media(prefers-reduced-motion:reduce){
+    .generator-card.gen-running{ animation:none; border-color:rgba(60,200,100,0.7); }
+    .generator-card.gen-starved{ animation:none; border-color:rgba(230,60,60,0.7); }
+  }
 
   /* ============ 太陽系タブ ============ */
   .requirement-row{
@@ -1701,6 +1739,7 @@
       gen_fusion_name:"核融合発電機",
       generator_owned_label:"所有数",
       generator_active_label:"稼働中",
+      gen_stopped_label:"停止中",
       generator_output_label:"出力",
       generator_fuel_label:"燃料",
       generator_no_fuel_label:"燃料不要",
@@ -1850,6 +1889,7 @@
       gen_fusion_name:"Nuclear Fusion Plant",
       generator_owned_label:"Owned",
       generator_active_label:"Active",
+      gen_stopped_label:"Stopped",
       generator_output_label:"Output",
       generator_fuel_label:"Fuel",
       generator_no_fuel_label:"No fuel required",
@@ -3151,6 +3191,12 @@
     GENERATOR_TYPES.forEach(function(t){ state.generatorActive[t] = on ? state.generatorOwned[t] : 0; });
     render(); save();
   }
+  function toggleGeneratorActive(type){
+    const owned = state.generatorOwned[type];
+    if(!owned) return;
+    state.generatorActive[type] = (state.generatorActive[type] || 0) > 0 ? 0 : owned;
+    render(); save();
+  }
   function adjustAutoActive(cat, idx, delta){
     const owned = cat === "particle" ? state.autoAssigned.particle[idx] : state.autoAssigned[cat][idx];
     if(!owned) return;
@@ -3186,20 +3232,27 @@
       const active = Math.min(state.generatorActive[type] || 0, owned);
       const intervalLabel = config.fuelIntervalTicks > 1 ? " /" + config.fuelIntervalTicks + "s" : " /s";
       let timerText = "";
+      let cardStateClass = "";
       if(config.fuel.length > 0 && active > 0){
         const timers = state.generatorUnitTimers[type] || [];
         const parts = [];
+        let anyRunning = false;
         for(let k = 0; k < active; k++){
           const t = timers[k] !== undefined ? timers[k] : 0;
           parts.push(t + "s");
+          if(t > 0) anyRunning = true;
         }
         timerText = ' <span style="color:var(--text-dim);font-size:10px;">[' + parts.join(", ") + ']</span>';
+        cardStateClass = anyRunning ? " gen-running" : " gen-starved";
+      } else if(config.fuel.length === 0 && active > 0){
+        cardStateClass = " gen-running";
       }
       const fuelText = config.fuel.length === 0
         ? dict.generator_no_fuel_label
         : dict.generator_fuel_label + ": " + generatorCostHtml(config.fuel) + (config.fuelAlt ? '<span class="recipe-plus">/</span>' + generatorCostHtml(config.fuelAlt) : "") + intervalLabel + timerText;
+      const isOn = active > 0;
       html +=
-        '<div class="generator-card">' +
+        '<div class="generator-card' + cardStateClass + '">' +
           '<div class="generator-card-header">' +
             '<span class="generator-name">' + dict[config.nameKey] + '</span>' +
             '<span class="generator-owned">' + dict.generator_owned_label + ': <span class="display-font">' + owned + '</span></span>' +
@@ -3209,7 +3262,9 @@
             '<br>' + fuelText +
           '</div>' +
           '<div class="gen-active-row">' +
-            '<span>' + dict.generator_active_label + '</span>' +
+            '<button class="gen-toggle-btn' + (isOn ? ' gen-on' : '') + '" data-gen-toggle="' + type + '">' +
+              (isOn ? dict.generator_active_label : dict.gen_stopped_label) +
+            '</button>' +
             '<div class="active-adj">' +
               '<button class="adj-btn gen-adj" data-type="' + type + '" data-delta="-1">−</button>' +
               '<span class="display-font">' + active + '/' + owned + '</span>' +
@@ -3228,6 +3283,9 @@
       btn.addEventListener("click", function(){
         adjustGeneratorActive(btn.getAttribute("data-type"), parseInt(btn.getAttribute("data-delta")));
       });
+    });
+    el.generatorList.querySelectorAll(".gen-toggle-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){ toggleGeneratorActive(btn.getAttribute("data-gen-toggle")); });
     });
     const stopBtn = document.getElementById("genBulkStopBtn");
     const startBtn = document.getElementById("genBulkStartBtn");
