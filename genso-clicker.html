@@ -1,0 +1,4139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>元素クリッカー / Genso Clicker</title>
+<style>
+  :root{
+    --bg-main:#14171C;
+    --bg-panel:#1C2028;
+    --bg-panel-hi:#242933;
+    --border:#2B303B;
+    --cyan:#4FD1C5;
+    --cyan-dim:#2E7A72;
+    --pink:#E85D9E;
+    --pink-dim:#8C3A61;
+    --text:#E8EAED;
+    --text-dim:#7A8290;
+    --neon-red:#FF2D4D;
+    --neon-red-dim:#7A2233;
+    --neon-blue:#2DA8FF;
+    --neon-blue-dim:#1F5A82;
+    --neon-white:#F5F7FA;
+    --neon-white-dim:#5A5F66;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--bg-main);
+    color:var(--text);
+    font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    overscroll-behavior:none;
+    user-select:none;
+  }
+  .display-font{
+    font-family:"Segoe UI",Consolas,"Roboto Mono",monospace;
+    letter-spacing:0.04em;
+  }
+  #app{
+    max-width:480px;
+    margin:0 auto;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    overflow:hidden;
+  }
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:16px 18px 10px;
+    border-bottom:1px solid var(--border);
+  }
+  .warehouse-tab{
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--text-dim);
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:8px 14px;
+    cursor:pointer;
+  }
+  .warehouse-tab:active{ background:var(--bg-panel-hi); }
+  .warehouse-tab.locked{ display:none; }
+  .warehouse-tab.pulse-attention{
+    animation:tabAttentionPulse 2.2s ease-in-out infinite;
+  }
+  @keyframes tabAttentionPulse{
+    0%{ box-shadow:0 0 0 rgba(255,209,102,0); border-color:var(--border); }
+    50%{ box-shadow:0 0 10px rgba(255,209,102,0.7); border-color:#FFD166; }
+    100%{ box-shadow:0 0 0 rgba(255,209,102,0); border-color:var(--border); }
+  }
+  .header-left{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    overflow-x:auto;
+    scrollbar-width:none;
+    -ms-overflow-style:none;
+  }
+  .header-left::-webkit-scrollbar{ display:none; }
+  .warehouse-tab{
+    flex-shrink:0;
+  }
+  .header-right{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .energy-badge{
+    font-size:12px;
+    font-weight:600;
+    color:#FFD166;
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:6px 10px;
+  }
+  .icon-btn{
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    width:36px; height:36px;
+    border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px;
+    cursor:pointer;
+  }
+  .icon-btn:active{ background:var(--bg-panel-hi); }
+
+  main{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    padding:18px;
+    gap:16px;
+    overflow-y:auto;
+  }
+
+  .counters{
+    display:flex;
+    flex-direction:row;
+    gap:12px;
+  }
+  /* 電子・中性子が未解放でdisplay:noneの間も、陽子ボタンが3等分の1枠ぶんの大きさのまま
+     変わらないよう、残りの空きスペースへ伸びないようにする（3つ揃った時と同じ見た目を維持） */
+  .counters .glass-frame{
+    flex:0 0 calc((100% - 24px) / 3);
+  }
+
+  /* ============ ガラスベベルボタン（共通コンポーネント） ============ */
+  /* ボタン類はこの質感を基準にする。個別の色は --tint-rgb で指定するだけで良い構造 */
+  .glass-frame{
+    flex:1;
+    aspect-ratio:1;
+    position:relative;
+    cursor:pointer;
+    background:#15171b;
+    transition:transform 0.08s ease;
+  }
+  .glass-frame:active{ transform:scale(0.95); }
+  .glass-frame.locked{ display:none; }
+
+  .g-edge{
+    position:absolute;
+    backdrop-filter:blur(4px);
+    -webkit-backdrop-filter:blur(4px);
+    border-style:solid;
+    border-color:rgba(255,255,255,0.18);
+  }
+  .g-edge-top{
+    top:0; left:0; right:0; height:8%;
+    clip-path:polygon(0 0, 100% 0, 92% 100%, 8% 100%);
+    border-width:1px 0 0 0;
+    background:linear-gradient(100deg,
+      rgba(var(--tint-rgb),0.15) 0%, rgba(255,255,255,0.5) 28%,
+      rgba(255,255,255,0.32) 45%, rgba(var(--tint-rgb),0.2) 62%,
+      rgba(255,255,255,0.42) 82%, rgba(var(--tint-rgb),0.12) 100%);
+  }
+  .g-edge-bottom{
+    bottom:0; left:0; right:0; height:8%;
+    clip-path:polygon(8% 0, 92% 0, 100% 100%, 0 100%);
+    border-width:0 0 1px 0;
+    background:linear-gradient(100deg,
+      rgba(var(--tint-rgb),0.4) 0%, rgba(255,255,255,0.26) 28%,
+      rgba(var(--tint-rgb),0.45) 50%, rgba(255,255,255,0.2) 72%,
+      rgba(var(--tint-rgb),0.48) 100%);
+  }
+  .g-edge-left{
+    top:0; left:0; bottom:0; width:8%;
+    clip-path:polygon(0 0, 100% 8%, 100% 92%, 0 100%);
+    border-width:0 0 0 1px;
+    background:linear-gradient(190deg,
+      rgba(255,255,255,0.48) 0%, rgba(var(--tint-rgb),0.28) 35%,
+      rgba(255,255,255,0.4) 55%, rgba(var(--tint-rgb),0.45) 80%,
+      rgba(var(--tint-rgb),0.2) 100%);
+  }
+  .g-edge-right{
+    top:0; right:0; bottom:0; width:8%;
+    clip-path:polygon(0 8%, 100% 0, 100% 100%, 0 92%);
+    border-width:0 1px 0 0;
+    background:linear-gradient(190deg,
+      rgba(var(--tint-rgb),0.25) 0%, rgba(255,255,255,0.42) 28%,
+      rgba(var(--tint-rgb),0.22) 55%, rgba(255,255,255,0.38) 78%,
+      rgba(var(--tint-rgb),0.45) 100%);
+  }
+  .g-inner{
+    position:absolute;
+    top:8%; left:8%; right:8%; bottom:8%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
+    background:
+      radial-gradient(circle at 32% 26%, rgba(255,255,255,0.14), rgba(255,255,255,0) 55%),
+      linear-gradient(155deg, rgba(255,255,255,0.05), rgba(0,0,0,0.35));
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,0.1),
+      inset 0 0 26px rgba(var(--tint-rgb),0.28);
+  }
+
+  @keyframes glassFlash{
+    0%{ filter:brightness(1) saturate(1); }
+    25%{ filter:brightness(1.6) saturate(1.4); }
+    100%{ filter:brightness(1) saturate(1); }
+  }
+  .glass-frame.flash{ animation:glassFlash 0.4s ease; }
+
+  /* 各ボタンの色（--tint-rgb を指定するだけで上記の質感が適用される） */
+  .proton-box{ --tint-rgb:255,45,77; }
+  .electron-box{ --tint-rgb:45,168,255; }
+  .neutron-box{ --tint-rgb:245,247,250; }
+  .element-card{ --tint-rgb:210,214,219; }
+  .molecule-card{ --tint-rgb:210,214,219; }
+  .substance-card{ --tint-rgb:210,214,219; }
+  .substance-card .element-symbol{
+    font-size:13px;
+    line-height:1.3;
+    padding:0 4px;
+    text-align:center;
+  }
+
+  .dot{
+    width:9px; height:9px; border-radius:50%;
+    flex-shrink:0;
+  }
+  .dot.proton{ background:var(--neon-red); box-shadow:0 0 8px var(--neon-red); }
+  .dot.electron{ background:var(--neon-blue); box-shadow:0 0 8px var(--neon-blue); }
+  .dot.neutron{ background:var(--neon-white); box-shadow:0 0 8px var(--neon-white); }
+  .resource-name{
+    font-size:13px;
+    color:var(--text-dim);
+  }
+  .resource-value{
+    font-size:28px;
+    font-weight:600;
+  }
+  .resource-value.proton{ color:var(--neon-red); }
+  .resource-value.electron{ color:var(--neon-blue); }
+  .resource-value.neutron{ color:var(--neon-white); }
+
+  .unlock-toast{
+    position:fixed;
+    left:50%;
+    top:66px;
+    z-index:80;
+    transform:translate(-50%,-140%);
+    background:var(--bg-panel-hi);
+    border:1px solid var(--cyan-dim);
+    color:var(--cyan);
+    font-size:12px;
+    padding:8px 14px;
+    border-radius:10px;
+    white-space:nowrap;
+    opacity:0;
+    transition:transform 0.4s ease, opacity 0.4s ease;
+    pointer-events:none;
+  }
+  .unlock-toast.show{
+    transform:translate(-50%,0);
+    opacity:1;
+  }
+
+  .content-tabs{
+    display:flex;
+    gap:8px;
+    padding:4px;
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    margin-bottom:4px;
+  }
+  .content-tab{
+    flex:1;
+    text-align:center;
+    padding:10px 6px;
+    font-size:12px;
+    font-weight:600;
+    letter-spacing:0.02em;
+    color:var(--text-dim);
+    background:transparent;
+    border:none;
+    border-radius:9px;
+    cursor:pointer;
+  }
+  .content-tab.active{
+    background:#FFD166;
+    color:#14171C;
+  }
+  .content-tab.locked{
+    display:none;
+  }
+  .content-pane{
+    display:none;
+    flex-direction:column;
+    gap:16px;
+  }
+  .content-pane.active{
+    display:flex;
+  }
+
+  .elements-section{
+    margin-top:6px;
+  }
+  .elements-section.locked{
+    display:none;
+  }
+  .elements-title{
+    font-size:12px;
+    font-weight:600;
+    letter-spacing:0.08em;
+    color:var(--text-dim);
+    text-transform:uppercase;
+    margin:0;
+  }
+  .elements-section-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin:0 0 10px;
+    gap:10px;
+  }
+  .sell-toggle-btn{
+    font-size:11px;
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    border-radius:8px;
+    padding:6px 10px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .sell-toggle-btn.active{
+    background:rgba(255,209,102,0.15);
+    border-color:#FFD166;
+    color:#FFD166;
+  }
+  .elements-grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:10px;
+  }
+  .element-symbol{
+    font-size:20px;
+    font-weight:700;
+  }
+  .element-name{
+    font-size:10px;
+    color:var(--text-dim);
+    text-align:center;
+  }
+  .element-count{
+    font-size:16px;
+    font-weight:600;
+    margin-top:2px;
+  }
+  .element-cost{
+    font-size:9px;
+    display:flex;
+    gap:6px;
+    margin-top:2px;
+  }
+  .element-cost .c-p{ color:var(--neon-red); }
+  .element-cost .c-e{ color:var(--neon-blue); }
+  .element-cost .c-n{ color:var(--neon-white); }
+  .element-cost.recipe-cost{
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:0;
+    max-width:100%;
+  }
+  .recipe-part{
+    font-family:"Segoe UI",Consolas,"Roboto Mono",monospace;
+    white-space:nowrap;
+  }
+  .recipe-part.c-n{ color:var(--neon-white); }
+  .recipe-plus{
+    color:var(--text-dim);
+    margin:0 3px;
+  }
+
+  footer{
+    padding:10px 18px 18px;
+    border-top:1px solid var(--border);
+    font-size:11px;
+    color:var(--text-dim);
+    text-align:center;
+  }
+
+  .modal-overlay{
+    position:fixed; inset:0;
+    background:rgba(10,12,15,0.7);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:100;
+    padding:20px;
+  }
+  .modal-overlay.open{ display:flex; }
+  .modal{
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:16px;
+    width:100%;
+    max-width:340px;
+    padding:20px;
+  }
+  .modal.scrollable-modal{
+    max-width:420px;
+    max-height:82vh;
+    overflow-y:auto;
+  }
+  .modal h2{
+    font-size:14px;
+    margin:0 0 16px;
+    color:var(--text-dim);
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+  }
+  #settingsTitle{
+    -webkit-user-select:none;
+    user-select:none;
+  }
+  .modal-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:10px 0;
+    border-bottom:1px solid var(--border);
+    font-size:13px;
+  }
+  .modal-row:last-of-type{ border-bottom:none; }
+  .lang-switch{
+    display:flex;
+    background:var(--bg-main);
+    border:1px solid var(--border);
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .lang-switch button{
+    border:none;
+    background:transparent;
+    color:var(--text-dim);
+    padding:6px 12px;
+    font-size:12px;
+    cursor:pointer;
+  }
+  .lang-switch button.active{
+    background:var(--cyan-dim);
+    color:var(--text);
+  }
+  .modal-close{
+    margin-top:16px;
+    width:100%;
+    padding:10px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:var(--bg-main);
+    color:var(--text);
+    font-size:13px;
+    cursor:pointer;
+  }
+  .danger-btn{
+    color:var(--pink);
+    border-color:var(--pink-dim);
+  }
+  .modal-section-title{
+    font-size:11px;
+    color:var(--text-dim);
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    margin:18px 0 8px;
+  }
+  .cap-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    padding:8px 0;
+    border-bottom:1px solid var(--border);
+    font-size:12px;
+  }
+  .cap-row:last-of-type{ border-bottom:none; }
+  .cap-name{ flex-shrink:0; }
+  .cap-value{
+    color:var(--text-dim);
+    flex:1;
+    text-align:center;
+  }
+  .cap-expand-btn{
+    background:var(--bg-main);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:8px;
+    padding:6px 10px;
+    font-size:11px;
+    cursor:pointer;
+    white-space:nowrap;
+    flex-shrink:0;
+  }
+  .cap-expand-btn:active{ background:var(--bg-panel-hi); }
+  .cap-row-list{
+    max-height:52vh;
+    overflow-y:auto;
+  }
+  .warehouse-tabs{
+    display:flex;
+    gap:6px;
+    margin-bottom:14px;
+    flex-wrap:wrap;
+  }
+  .warehouse-subtab{
+    flex:1;
+    min-width:70px;
+    font-size:11px;
+    background:var(--bg-main);
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    border-radius:8px;
+    padding:8px 4px;
+    cursor:pointer;
+    text-align:center;
+    white-space:nowrap;
+  }
+  .warehouse-subtab.active{
+    background:rgba(255,209,102,0.15);
+    border-color:#FFD166;
+    color:#FFD166;
+  }
+  .warehouse-pane{
+    margin-bottom:12px;
+  }
+  .help-text{
+    font-size:13px;
+    color:var(--text);
+    line-height:1.7;
+    margin:0 0 4px;
+  }
+
+  /* ============ 発電タブ ============ */
+  .power-status-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:6px 0;
+    font-size:12px;
+    color:var(--text-dim);
+  }
+  .power-value{
+    color:#FFD166;
+    font-weight:600;
+    font-size:14px;
+  }
+  .windup-box{
+    width:130px;
+    margin:14px auto 18px;
+    --tint-rgb:255,209,102;
+  }
+  .windup-box .resource-value.windup{ color:#FFD166; font-size:14px; }
+  .windup-hint{
+    font-size:9px;
+    color:var(--text-dim);
+    margin-top:2px;
+    text-align:center;
+  }
+  .windup-engraving{
+    position:absolute;
+    right:6px;
+    bottom:4px;
+    font-size:6px;
+    letter-spacing:0.03em;
+    color:rgba(255,255,255,0.08);
+    pointer-events:none;
+    white-space:nowrap;
+  }
+  .generator-list{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .generator-card{
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:12px 14px;
+  }
+  .generator-card-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:6px;
+  }
+  .generator-name{
+    font-size:13px;
+    font-weight:600;
+  }
+  .generator-owned{
+    font-size:11px;
+    color:var(--text-dim);
+  }
+  .generator-info{
+    font-size:11px;
+    color:var(--text-dim);
+    margin-bottom:8px;
+    line-height:1.6;
+  }
+  .generator-cost{
+    font-size:10px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:2px;
+    margin-bottom:8px;
+  }
+  .generator-build-btn{
+    width:100%;
+    background:var(--bg-main);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:8px;
+    padding:8px;
+    font-size:12px;
+    cursor:pointer;
+  }
+  .generator-build-btn:active{ background:var(--bg-panel-hi); }
+
+  /* ============ 元素ごとの自動生産機（強化タブ内） ============ */
+  .cap-row.has-auto{
+    flex-wrap:wrap;
+    row-gap:8px;
+  }
+  .auto-producer-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    width:100%;
+    padding-top:8px;
+    border-top:1px dashed var(--border);
+    font-size:11px;
+    color:var(--text-dim);
+  }
+  .auto-producer-owned{
+    color:var(--text-dim);
+  }
+  .auto-producer-btn{
+    background:var(--bg-main);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:8px;
+    padding:5px 9px;
+    font-size:10px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .auto-producer-btn:active{ background:var(--bg-panel-hi); }
+
+  /* ============ 太陽系タブ ============ */
+  .requirement-row{
+    padding:10px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .requirement-row:last-of-type{ border-bottom:none; }
+  .requirement-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-size:12px;
+    margin-bottom:6px;
+  }
+  .requirement-amount{
+    color:var(--text-dim);
+    font-size:11px;
+  }
+  .requirement-bar-track{
+    height:6px;
+    border-radius:4px;
+    background:var(--bg-main);
+    overflow:hidden;
+    margin-bottom:8px;
+  }
+  .requirement-bar-fill{
+    height:100%;
+    background:linear-gradient(90deg, #FFD166, #FF9F4A);
+    border-radius:4px;
+  }
+  .requirement-load-btn{
+    width:100%;
+    background:var(--bg-main);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:8px;
+    padding:7px;
+    font-size:11px;
+    cursor:pointer;
+  }
+  .requirement-load-btn:active{ background:var(--bg-panel-hi); }
+  .requirement-load-btn:disabled{ opacity:0.4; cursor:default; }
+
+  /* ============ 研究ツリー（ノード＆接続線） ============ */
+  .tree-node{
+    width:100%;
+    max-width:220px;
+    margin:0 auto;
+    background:var(--bg-panel);
+    border:2px solid var(--border);
+    border-radius:12px;
+    padding:12px 10px;
+    position:relative;
+  }
+  .tree-node.done{ border-color:#FFD166; }
+  .tree-node.done .tree-node-name{ color:#FFD166; }
+  .tree-node-check{
+    position:absolute;
+    top:-9px;
+    right:-9px;
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    background:#FFD166;
+    color:#14171C;
+    font-size:12px;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .tree-node-name{
+    font-size:12px;
+    font-weight:600;
+    text-align:center;
+    color:var(--text);
+    margin-bottom:8px;
+  }
+  .tree-node-req{
+    margin-bottom:8px;
+    border-radius:8px;
+    padding:4px;
+    margin-left:-4px;
+    margin-right:-4px;
+  }
+  .tree-node-req:last-child{ margin-bottom:0; }
+  .tree-node-req.deliverable{
+    animation:reqAttentionPulse 2.2s ease-in-out infinite;
+  }
+  @keyframes reqAttentionPulse{
+    0%{ box-shadow:0 0 0 rgba(255,209,102,0); background:rgba(255,209,102,0); }
+    50%{ box-shadow:0 0 12px rgba(255,209,102,0.6); background:rgba(255,209,102,0.08); }
+    100%{ box-shadow:0 0 0 rgba(255,209,102,0); background:rgba(255,209,102,0); }
+  }
+  .tree-node-req-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-size:11px;
+    margin-bottom:4px;
+  }
+  .tree-node-req-amount{
+    color:var(--text-dim);
+    font-size:10px;
+  }
+  .tree-vline{
+    width:2px;
+    height:20px;
+    background:var(--border);
+    margin:0 auto;
+  }
+  .branch-row-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
+    gap:10px 12px;
+    position:relative;
+    padding-top:10px;
+    margin-top:2px;
+    border-top:2px solid var(--border);
+  }
+
+  .queue-slot-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:8px 10px;
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    margin-bottom:8px;
+    font-size:11px;
+    color:var(--text-dim);
+  }
+  .queue-slot-row.active{ color:var(--text); border-color:#FFD166; }
+
+  /* ============ タスク型チュートリアル ============ */
+  .tutorial-banner{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:14px 18px 0;
+    background:var(--bg-panel);
+    border:1px solid #FFD166;
+    border-radius:14px;
+    padding:12px 14px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.5);
+  }
+  .tutorial-banner-text{
+    flex:1;
+    font-size:12px;
+    color:var(--text);
+    line-height:1.5;
+  }
+  .tutorial-banner-skip{
+    flex-shrink:0;
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    border-radius:8px;
+    width:28px;
+    height:28px;
+    font-size:12px;
+    cursor:pointer;
+  }
+
+  /* ============ リワード広告（モック） ============ */
+  .reward-ad-offer{
+    position:fixed;
+    left:50%;
+    bottom:20px;
+    transform:translateX(-50%);
+    width:calc(100% - 40px);
+    max-width:400px;
+    background:var(--bg-panel);
+    border:1px solid #FFD166;
+    border-radius:14px;
+    padding:14px;
+    z-index:260;
+    box-shadow:0 8px 24px rgba(0,0,0,0.5);
+  }
+  .reward-ad-offer.pulse{
+    animation:rewardAdPulse 0.5s ease;
+  }
+  @keyframes rewardAdPulse{
+    0%{ box-shadow:0 8px 24px rgba(0,0,0,0.5), 0 0 0 rgba(255,209,102,0); }
+    40%{ box-shadow:0 8px 24px rgba(0,0,0,0.5), 0 0 18px rgba(255,209,102,0.9); }
+    100%{ box-shadow:0 8px 24px rgba(0,0,0,0.5), 0 0 0 rgba(255,209,102,0); }
+  }
+  .reward-ad-text{
+    font-size:12px;
+    color:var(--text);
+    line-height:1.5;
+    margin-bottom:10px;
+  }
+  .reward-ad-actions{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .reward-ad-watch-btn{
+    flex:1;
+    background:#FFD166;
+    border:none;
+    border-radius:8px;
+    padding:10px;
+    font-size:12px;
+    font-weight:600;
+    color:#14171C;
+    cursor:pointer;
+  }
+  .reward-ad-close{
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    border-radius:8px;
+    width:36px;
+    height:36px;
+    flex-shrink:0;
+    cursor:pointer;
+  }
+  .reward-ad-modal{
+    text-align:center;
+  }
+  .reward-ad-icon{
+    font-size:32px;
+    margin-bottom:10px;
+    color:#FFD166;
+  }
+  .reward-ad-countdown-track{
+    height:6px;
+    border-radius:4px;
+    background:var(--bg-main);
+    overflow:hidden;
+    margin-top:14px;
+  }
+  .reward-ad-countdown-fill{
+    height:100%;
+    width:0%;
+    background:#FFD166;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="header-left">
+      <button class="warehouse-tab" id="researchTabBtn" data-i18n="research_tab">研究</button>
+      <button class="warehouse-tab locked" id="warehouseTabBtn" data-i18n="warehouse_tab">強化</button>
+      <button class="warehouse-tab locked" id="powerTabBtn" data-i18n="power_tab">発電</button>
+      <button class="warehouse-tab locked" id="solarTabBtn" data-i18n="solar_tab">太陽系</button>
+    </div>
+    <div class="header-right">
+      <span class="energy-badge display-font" id="energyBadge">⚡0</span>
+      <button class="icon-btn" id="settingsBtn">⚙</button>
+    </div>
+  </header>
+
+  <div class="tutorial-banner" id="tutorialBanner" style="display:none;">
+    <div class="tutorial-banner-text" id="tutorialBannerText"></div>
+    <button class="tutorial-banner-skip" id="tutorialBannerSkipBtn">✕</button>
+  </div>
+
+  <div class="unlock-toast" id="unlockToast"></div>
+
+  <main>
+    <div class="content-tabs">
+      <button class="content-tab active" id="contentTabElements" data-pane="elements" data-i18n="content_tab_elements">素粒子&元素</button>
+      <button class="content-tab locked" id="contentTabMolecules" data-pane="molecules" data-i18n="molecules_tab">分子</button>
+      <button class="content-tab locked" id="contentTabSubstances" data-pane="substances" data-i18n="substances_tab">物質</button>
+    </div>
+
+    <div class="content-pane active" id="contentPaneElements">
+      <div class="counters">
+        <button class="glass-frame proton-box" id="protonBtn">
+          <div class="g-edge g-edge-top"></div>
+          <div class="g-edge g-edge-bottom"></div>
+          <div class="g-edge g-edge-left"></div>
+          <div class="g-edge g-edge-right"></div>
+          <div class="g-inner">
+            <span class="dot proton"></span>
+            <span class="resource-name" data-i18n="proton_label">陽子</span>
+            <span class="resource-value proton display-font" id="protonCount">0</span>
+          </div>
+        </button>
+        <button class="glass-frame electron-box locked" id="electronBtn">
+          <div class="g-edge g-edge-top"></div>
+          <div class="g-edge g-edge-bottom"></div>
+          <div class="g-edge g-edge-left"></div>
+          <div class="g-edge g-edge-right"></div>
+          <div class="g-inner">
+            <span class="dot electron"></span>
+            <span class="resource-name" data-i18n="electron_label">電子</span>
+            <span class="resource-value electron display-font" id="electronCount">0</span>
+          </div>
+        </button>
+        <button class="glass-frame neutron-box locked" id="neutronBtn">
+          <div class="g-edge g-edge-top"></div>
+          <div class="g-edge g-edge-bottom"></div>
+          <div class="g-edge g-edge-left"></div>
+          <div class="g-edge g-edge-right"></div>
+          <div class="g-inner">
+            <span class="dot neutron"></span>
+            <span class="resource-name" data-i18n="neutron_label">中性子</span>
+            <span class="resource-value neutron display-font" id="neutronCount">0</span>
+          </div>
+        </button>
+      </div>
+
+      <div class="elements-section locked" id="elementsSection">
+        <div class="elements-section-header">
+          <h2 class="elements-title" data-i18n="elements_title">元素合成</h2>
+          <button class="sell-toggle-btn" id="sellModeBtn" data-i18n="sell_mode_btn">売却モード</button>
+        </div>
+        <div class="elements-grid" id="elementsGrid"></div>
+      </div>
+    </div>
+
+    <div class="content-pane" id="contentPaneMolecules">
+      <div class="elements-grid" id="moleculesGrid"></div>
+    </div>
+
+    <div class="content-pane" id="contentPaneSubstances">
+      <div class="elements-grid" id="substancesGrid"></div>
+    </div>
+  </main>
+
+  <footer data-i18n="footer_text">タップで素粒子を生成し、元素の世界へ</footer>
+</div>
+
+<div class="modal-overlay" id="settingsOverlay">
+  <div class="modal">
+    <h2 data-i18n="settings_title" id="settingsTitle">設定</h2>
+    <div class="modal-row">
+      <span data-i18n="language_label">言語</span>
+      <div class="lang-switch">
+        <button id="langJa" class="active">日本語</button>
+        <button id="langEn">EN</button>
+      </div>
+    </div>
+    <div class="modal-row">
+      <span data-i18n="backup_label">バックアップ</span>
+      <div style="display:flex; gap:8px;">
+        <button class="modal-close" id="exportSaveBtn" style="width:auto; padding:6px 12px; margin:0;" data-i18n="export_btn">エクスポート</button>
+        <button class="modal-close" id="importSaveBtn" style="width:auto; padding:6px 12px; margin:0;" data-i18n="import_btn">インポート</button>
+      </div>
+    </div>
+    <input type="file" id="importFileInput" accept="application/json,.json" style="display:none;">
+    <div class="modal-row">
+      <span data-i18n="save_label">セーブデータ</span>
+      <button class="modal-close danger-btn" id="resetBtn" style="width:auto; padding:6px 12px; margin:0;" data-i18n="reset_btn">リセット</button>
+    </div>
+
+    <button class="modal-close" id="closeSettings" data-i18n="close_btn">閉じる</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="researchOverlay">
+  <div class="modal scrollable-modal">
+    <h2 data-i18n="research_title">研究</h2>
+    <p class="help-text" data-i18n="research_intro">生成したものを納品すると、次の研究が解放されます。</p>
+    <div id="researchNodeList"></div>
+    <button class="modal-close" id="closeResearch" data-i18n="close_btn">閉じる</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="warehouseOverlay">
+  <div class="modal scrollable-modal">
+    <h2 data-i18n="warehouse_title">強化</h2>
+
+    <div class="warehouse-tabs">
+      <button class="warehouse-subtab active" data-pane="particles" data-i18n="category_particles">全素粒子</button>
+      <button class="warehouse-subtab" data-pane="elements" data-i18n="category_elements">全元素</button>
+      <button class="warehouse-subtab" data-pane="molecules" data-i18n="category_molecules">全分子</button>
+      <button class="warehouse-subtab" data-pane="substances" data-i18n="category_materials">全物質</button>
+    </div>
+
+    <div class="warehouse-pane" id="warehousePaneParticles">
+      <div class="cap-row has-auto">
+        <span class="cap-name" data-i18n="proton_label">陽子</span>
+        <span class="cap-value display-font" id="protonCapValue">50</span>
+        <button class="cap-expand-btn display-font" id="protonCapBtn">+50</button>
+        <div class="auto-producer-row">
+          <span data-i18n="auto_producer_label">自動生産機</span> <span class="auto-producer-owned display-font" id="autoOwnedProton">0</span>
+          <button class="auto-producer-btn display-font" id="autoBtnProton"></button>
+        </div>
+        <div class="auto-producer-row">
+          <span data-i18n="tap_power_label">タップ力</span> <span class="auto-producer-owned display-font" id="tapPowerLevelProton">+0.0</span>
+          <button class="auto-producer-btn display-font" id="tapPowerBtnProton"></button>
+        </div>
+      </div>
+      <div class="cap-row has-auto">
+        <span class="cap-name" data-i18n="electron_label">電子</span>
+        <span class="cap-value display-font" id="electronCapValue">50</span>
+        <button class="cap-expand-btn display-font" id="electronCapBtn">+50</button>
+        <div class="auto-producer-row">
+          <span data-i18n="auto_producer_label">自動生産機</span> <span class="auto-producer-owned display-font" id="autoOwnedElectron">0</span>
+          <button class="auto-producer-btn display-font" id="autoBtnElectron"></button>
+        </div>
+        <div class="auto-producer-row">
+          <span data-i18n="tap_power_label">タップ力</span> <span class="auto-producer-owned display-font" id="tapPowerLevelElectron">+0.0</span>
+          <button class="auto-producer-btn display-font" id="tapPowerBtnElectron"></button>
+        </div>
+      </div>
+      <div class="cap-row has-auto">
+        <span class="cap-name" data-i18n="neutron_label">中性子</span>
+        <span class="cap-value display-font" id="neutronCapValue">50</span>
+        <button class="cap-expand-btn display-font" id="neutronCapBtn">+50</button>
+        <div class="auto-producer-row">
+          <span data-i18n="auto_producer_label">自動生産機</span> <span class="auto-producer-owned display-font" id="autoOwnedNeutron">0</span>
+          <button class="auto-producer-btn display-font" id="autoBtnNeutron"></button>
+        </div>
+        <div class="auto-producer-row">
+          <span data-i18n="tap_power_label">タップ力</span> <span class="auto-producer-owned display-font" id="tapPowerLevelNeutron">+0.0</span>
+          <button class="auto-producer-btn display-font" id="tapPowerBtnNeutron"></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="warehouse-pane" id="warehousePaneElements" style="display:none;">
+      <div class="cap-row-list" id="elementCapList"></div>
+    </div>
+
+    <div class="warehouse-pane" id="warehousePaneMolecules" style="display:none;">
+      <div class="cap-row-list" id="moleculeCapList"></div>
+    </div>
+
+    <div class="warehouse-pane" id="warehousePaneSubstances" style="display:none;">
+      <div class="cap-row-list" id="substanceCapList"></div>
+    </div>
+
+    <button class="modal-close" id="closeWarehouse" data-i18n="close_btn">閉じる</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="powerOverlay">
+  <div class="modal scrollable-modal">
+    <h2 data-i18n="power_title">発電</h2>
+
+    <div class="power-status-row">
+      <span data-i18n="power_generation_label">発電量</span>
+      <span class="power-value display-font" id="powerGenValue">0MW</span>
+    </div>
+    <div class="power-status-row">
+      <span data-i18n="power_demand_label">自動生産機の消費電力</span>
+      <span class="power-value display-font" id="powerDemandValue">0MW</span>
+    </div>
+
+    <button class="glass-frame windup-box" id="windupBtn">
+      <div class="g-edge g-edge-top"></div>
+      <div class="g-edge g-edge-bottom"></div>
+      <div class="g-edge g-edge-left"></div>
+      <div class="g-edge g-edge-right"></div>
+      <div class="g-inner">
+        <span class="resource-name" data-i18n="gen_windup_name">ゼンマイ発電機</span>
+        <span class="resource-value windup display-font" id="windupTimeValue">0:00</span>
+        <span class="windup-hint" data-i18n="windup_hint">タップで+5秒（最大5分）</span>
+        <span class="windup-engraving">Type Artyom</span>
+      </div>
+    </button>
+
+    <div class="cap-row">
+      <span class="cap-name" data-i18n="generator_buff_duration_label">稼働時間3倍</span>
+      <button class="cap-expand-btn display-font" id="windupDurationBuffBtn" style="flex:1;"></button>
+    </div>
+    <div class="cap-row">
+      <span class="cap-name" data-i18n="generator_buff_output_label">発電量3倍</span>
+      <button class="cap-expand-btn display-font" id="windupOutputBuffBtn" style="flex:1;"></button>
+    </div>
+
+    <div class="generator-list" id="generatorList"></div>
+
+    <button class="modal-close" id="closePower" data-i18n="close_btn">閉じる</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="solarOverlay">
+  <div class="modal scrollable-modal">
+    <h2 data-i18n="solar_title">太陽系構築</h2>
+
+    <div class="power-status-row">
+      <span data-i18n="solar_building_label">現在建設中</span>
+      <span class="power-value display-font" id="bodyNameValue">-</span>
+    </div>
+
+    <div class="modal-section-title" data-i18n="solar_requirements_label">必要な物質</div>
+    <div id="bodyRequirementList"></div>
+
+    <div class="modal-section-title" data-i18n="solar_transport_label">送出装置</div>
+    <div class="cap-row">
+      <span class="cap-name" data-i18n="transport_speed_label">輸送速度</span>
+      <span class="cap-value display-font" id="transportSpeedValue">1/s</span>
+      <button class="cap-expand-btn display-font" id="transportSpeedBtn"></button>
+    </div>
+    <div class="cap-row">
+      <span class="cap-name" data-i18n="transport_slots_label">同時輸送数</span>
+      <span class="cap-value display-font" id="transportSlotsValue">1</span>
+      <button class="cap-expand-btn display-font" id="transportSlotsBtn"></button>
+    </div>
+
+    <div class="modal-section-title" data-i18n="solar_queue_label">輸送キュー</div>
+    <div id="transportQueueList"></div>
+
+    <button class="modal-close" id="closeSolar" data-i18n="close_btn">閉じる</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="warehouseHelpOverlay">
+  <div class="modal">
+    <h2 data-i18n="warehouse_help_title">元素合成が解放されました</h2>
+    <p class="help-text" data-i18n="warehouse_help_body">元素合成が解放されました。素粒子から元素をクラフトできます。元素は『売却モード』ボタンをオンにして元素ボタンをタップするとエネルギーに変換できます。エネルギーは『強化理論解放後』に各種アップグレードに使用できます。</p>
+    <button class="modal-close" id="closeWarehouseHelp" data-i18n="close_btn">閉じる</button>
+  </div>
+</div>
+  </div>
+</div>
+
+<div class="reward-ad-offer" id="rewardAdOffer" style="display:none;">
+  <div class="reward-ad-text" id="rewardAdOfferText"></div>
+  <div class="reward-ad-actions">
+    <button class="reward-ad-close" id="rewardAdCloseBtn">✕</button>
+    <button class="reward-ad-watch-btn" id="rewardAdWatchBtn"></button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="rewardAdPlayingOverlay">
+  <div class="modal reward-ad-modal">
+    <div class="reward-ad-icon">▶</div>
+    <p class="help-text" data-i18n="reward_ad_playing">広告を再生中…</p>
+    <div class="reward-ad-countdown-track"><div class="reward-ad-countdown-fill" id="rewardAdCountdownFill"></div></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ============ 文字列一元管理 (i18n) ============
+  const STRINGS = {
+    ja:{
+      proton_label:"陽子",
+      content_tab_elements:"素粒子&元素",
+      electron_label:"電子",
+      neutron_label:"中性子",
+      proton_btn:"陽子を生成",
+      electron_btn:"電子を生成",
+      unlock_toast_electron:"電子生成が解放された",
+      unlock_toast_neutron:"中性子生成が解放された",
+      unlock_toast_elements:"原子生成が解放された",
+      elements_title:"元素合成",
+      research_tab:"研究",
+      research_title:"研究",
+      research_intro:"生成したものを納品すると、次の研究が解放されます。",
+      research_node_electron:"電子理論",
+      research_node_neutron:"中性子理論",
+      research_node_synthesis:"元素合成理論",
+      research_node_storage:"強化理論",
+      research_node_power:"動力理論",
+      research_node_molecular:"分子理論",
+      research_node_materials:"物性理論",
+      research_node_astro:"航宇理論",
+      research_node_gen_coal:"石炭発電",
+      research_node_gen_oil:"火力発電",
+      research_node_gen_solar:"太陽光発電",
+      research_node_gen_fission:"核分裂発電",
+      research_node_gen_fusion:"核融合発電",
+      research_node_mol_gas:"気体",
+      research_node_mol_liquid:"液体",
+      research_node_mol_solid:"固体",
+      research_node_sub_air:"空気",
+      research_node_sub_seawater:"海水",
+      research_node_sub_ice:"氷",
+      research_node_sub_rock:"岩石",
+      research_node_sub_glass:"ガラス",
+      research_node_sub_steel:"鋼鉄",
+      research_node_sub_bronze:"青銅",
+      research_node_sub_goldalloy:"合金の金",
+      research_node_sub_wood:"木材",
+      research_node_sub_plastic:"プラスチック",
+      research_node_sub_fuel:"燃料",
+      research_node_sub_semiconductor:"半導体",
+      unlock_toast_gen_coal:"石炭発電機が解放された",
+      unlock_toast_gen_oil:"火力発電機が解放された",
+      unlock_toast_gen_solar:"太陽光発電機が解放された",
+      unlock_toast_gen_fission:"核分裂発電機が解放された",
+      unlock_toast_gen_fusion:"核融合発電機が解放された",
+      unlock_toast_mol_gas:"気体の分子が解放された",
+      unlock_toast_mol_liquid:"液体の分子が解放された",
+      unlock_toast_mol_solid:"固体の分子が解放された",
+      unlock_toast_substance_item:"{name}が解放された",
+      unlock_toast_warehouse:"強化タブが解放された",
+      unlock_toast_power:"発電タブが解放された",
+      unlock_toast_molecules:"分子タブが解放された",
+      unlock_toast_substances:"物質タブが解放された",
+      unlock_toast_solar:"太陽系タブが解放された",
+      research_deliver_btn:"納品",
+      research_complete_label:"解放済み",
+      tutorial_produce_proton:"ボタンをタップし陽子を50個生産してください。",
+      tutorial_deliver_proton:"研究をタップし陽子を納品してください。",
+      tutorial_produce_electron:"ボタンをタップし電子を50個生産してください。",
+      tutorial_deliver_electron:"研究をタップし電子を納品してください。",
+      tutorial_produce_neutron:"ボタンをタップし中性子を50個生産してください。中性子は陽子と電子を消費します。",
+      tutorial_deliver_neutron:"研究をタップし中性子を納品してください。",
+      reward_ad_offer_text:"{name}の材料が足りません。広告を見て{name}を{amount}個もらいますか？",
+      reward_ad_watch_btn:"▶ 広告を見て受け取る",
+      reward_ad_playing:"広告を再生中…",
+      reward_ad_granted_text:"{name}を{amount}個獲得しました！",
+      generator_buff_duration_label:"稼働時間3倍",
+      generator_buff_output_label:"発電量3倍",
+      generator_buff_watch_btn:"▶ 広告で獲得（24時間）",
+      generator_buff_active_prefix:"有効: ",
+      reward_ad_duration_granted:"稼働時間3倍を24時間獲得しました！",
+      reward_ad_output_granted:"発電量3倍を24時間獲得しました！",
+      warehouse_tab:"強化",
+      warehouse_title:"強化",
+      category_particles:"全素粒子",
+      category_elements:"全元素",
+      category_molecules:"全分子",
+      category_materials:"全物質",
+      warehouse_help_title:"元素合成が解放されました",
+      warehouse_help_body:"元素合成が解放されました。素粒子から元素をクラフトできます。元素は『売却モード』ボタンをオンにして元素ボタンをタップするとエネルギーに変換できます。エネルギーは『強化理論解放後』に各種アップグレードに使用できます。",
+      power_tab:"発電",
+      power_title:"発電",
+      power_generation_label:"発電量",
+      power_demand_label:"自動生産機の消費電力",
+      gen_windup_name:"空気圧発電機",
+      windup_hint:"タップで+5秒（最大5分）",
+      gen_coal_name:"石炭発電機",
+      gen_oil_name:"石油発電機",
+      gen_solar_name:"太陽光発電",
+      gen_fission_name:"核分裂発電機",
+      gen_fusion_name:"核融合発電機",
+      generator_owned_label:"所有数",
+      generator_output_label:"出力",
+      generator_fuel_label:"燃料",
+      generator_no_fuel_label:"燃料不要",
+      generator_build_btn:"設置する",
+      auto_producer_label:"自動生産機",
+      tap_power_label:"タップ力",
+      auto_producer_assign_btn:"設置",
+      molecules_tab:"分子",
+      molecules_title:"分子",
+      substances_tab:"物質",
+      substances_title:"物質",
+      solar_tab:"太陽系",
+      solar_title:"太陽系構築",
+      solar_building_label:"現在建設中",
+      solar_requirements_label:"必要な物質",
+      solar_transport_label:"送出装置",
+      solar_queue_label:"輸送キュー",
+      transport_speed_label:"輸送速度",
+      transport_slots_label:"同時輸送数",
+      requirement_load_btn:"投入",
+      requirement_complete_label:"完成",
+      queue_slot_empty:"空き枠",
+      queue_slot_shipping:"{name} 残り{amount}",
+      body_complete_toast:"{name}が完成しました！",
+      all_bodies_complete_toast:"太陽系が完成しました！",
+      galaxy_label:"銀河生成",
+      galaxy_complete_toast:"銀河が完成しました！？？！",
+      sell_mode_btn:"売却モード",
+      sell_mode_btn_active:"売却モード中",
+      unlock_toast_element:"{name}の生成が解放された",
+      footer_text:"タップで素粒子を生成し、元素の世界へ",
+      settings_title:"設定",
+      debug_mode_on:"デバッグモードが有効になりました",
+      debug_mode_off:"デバッグモードを解除しました",
+      language_label:"言語",
+      save_label:"セーブデータ",
+      backup_label:"バックアップ",
+      export_btn:"エクスポート",
+      import_btn:"インポート",
+      import_confirm:"インポートすると現在のセーブデータは上書きされます。よろしいですか？",
+      import_success:"セーブデータを読み込みました。",
+      import_error:"セーブデータの読み込みに失敗しました。ファイルが壊れているか、対応していない形式です。",
+      reset_btn:"リセット",
+      close_btn:"閉じる",
+      reset_confirm:"本当にセーブデータをリセットしますか？この操作は取り消せません。"
+    },
+    en:{
+      proton_label:"Protons",
+      content_tab_elements:"Particles & Elements",
+      electron_label:"Electrons",
+      neutron_label:"Neutrons",
+      proton_btn:"Generate Proton",
+      electron_btn:"Generate Electron",
+      unlock_toast_electron:"Electron generation unlocked",
+      unlock_toast_neutron:"Neutron generation unlocked",
+      unlock_toast_elements:"Atom synthesis unlocked",
+      elements_title:"Element Synthesis",
+      research_tab:"Research",
+      research_title:"Research",
+      research_intro:"Deliver what you've produced to unlock the next research.",
+      research_node_electron:"Electron Theory",
+      research_node_neutron:"Neutron Theory",
+      research_node_synthesis:"Synthesis Theory",
+      research_node_storage:"Enhancement Theory",
+      research_node_power:"Power Theory",
+      research_node_molecular:"Molecular Theory",
+      research_node_materials:"Materials Theory",
+      research_node_astro:"Astronautics Theory",
+      research_node_gen_coal:"Coal Power",
+      research_node_gen_oil:"Thermal Power",
+      research_node_gen_solar:"Solar Power",
+      research_node_gen_fission:"Fission Power",
+      research_node_gen_fusion:"Fusion Power",
+      research_node_mol_gas:"Gas",
+      research_node_mol_liquid:"Liquid",
+      research_node_mol_solid:"Solid",
+      research_node_sub_air:"Air",
+      research_node_sub_seawater:"Seawater",
+      research_node_sub_ice:"Ice",
+      research_node_sub_rock:"Rock",
+      research_node_sub_glass:"Glass",
+      research_node_sub_steel:"Steel",
+      research_node_sub_bronze:"Bronze",
+      research_node_sub_goldalloy:"Gold Alloy",
+      research_node_sub_wood:"Wood",
+      research_node_sub_plastic:"Plastic",
+      research_node_sub_fuel:"Fuel",
+      research_node_sub_semiconductor:"Semiconductor",
+      unlock_toast_gen_coal:"Coal generator unlocked",
+      unlock_toast_gen_oil:"Thermal generator unlocked",
+      unlock_toast_gen_solar:"Solar generator unlocked",
+      unlock_toast_gen_fission:"Fission generator unlocked",
+      unlock_toast_gen_fusion:"Fusion generator unlocked",
+      unlock_toast_mol_gas:"Gas molecules unlocked",
+      unlock_toast_mol_liquid:"Liquid molecules unlocked",
+      unlock_toast_mol_solid:"Solid molecules unlocked",
+      unlock_toast_substance_item:"{name} unlocked",
+      unlock_toast_warehouse:"Upgrade tab unlocked",
+      unlock_toast_power:"Power tab unlocked",
+      unlock_toast_molecules:"Molecules tab unlocked",
+      unlock_toast_substances:"Substances tab unlocked",
+      unlock_toast_solar:"Solar System tab unlocked",
+      research_deliver_btn:"Deliver",
+      research_complete_label:"Unlocked",
+      tutorial_produce_proton:"Tap the button to produce 50 protons.",
+      tutorial_deliver_proton:"Tap Research and deliver your protons.",
+      tutorial_produce_electron:"Tap the button to produce 50 electrons.",
+      tutorial_deliver_electron:"Tap Research and deliver your electrons.",
+      tutorial_produce_neutron:"Tap the button to produce 50 neutrons. Neutrons consume protons and electrons.",
+      tutorial_deliver_neutron:"Tap Research and deliver your neutrons.",
+      reward_ad_offer_text:"Not enough materials for {name}. Watch an ad to get {amount} {name}?",
+      reward_ad_watch_btn:"▶ Watch Ad to Claim",
+      reward_ad_playing:"Playing ad…",
+      reward_ad_granted_text:"Received {amount} {name}!",
+      generator_buff_duration_label:"3x Duration",
+      generator_buff_output_label:"3x Output",
+      generator_buff_watch_btn:"▶ Watch Ad (24h)",
+      generator_buff_active_prefix:"Active: ",
+      reward_ad_duration_granted:"3x duration active for 24 hours!",
+      reward_ad_output_granted:"3x output active for 24 hours!",
+      warehouse_tab:"Upgrade",
+      warehouse_title:"Upgrade",
+      category_particles:"All Particles",
+      category_elements:"All Elements",
+      category_molecules:"All Molecules",
+      category_materials:"All Substances",
+      warehouse_help_title:"Element Synthesis Unlocked",
+      warehouse_help_body:"Atom synthesis is now unlocked. You can craft elements from particles. Turn on 'Sell Mode' and tap an element button to convert it into Energy. Energy can be spent on various upgrades once Enhancement Theory is unlocked.",
+      power_tab:"Power",
+      power_title:"Power",
+      power_generation_label:"Generation",
+      power_demand_label:"Auto-Producer Demand",
+      gen_windup_name:"Pneumatic Generator",
+      windup_hint:"Tap for +5s (max 5 min)",
+      gen_coal_name:"Coal Power Plant",
+      gen_oil_name:"Oil Power Plant",
+      gen_solar_name:"Solar Power",
+      gen_fission_name:"Nuclear Fission Plant",
+      gen_fusion_name:"Nuclear Fusion Plant",
+      generator_owned_label:"Owned",
+      generator_output_label:"Output",
+      generator_fuel_label:"Fuel",
+      generator_no_fuel_label:"No fuel required",
+      generator_build_btn:"Build",
+      auto_producer_label:"Auto-Producer",
+      tap_power_label:"Tap Power",
+      auto_producer_assign_btn:"Install",
+      molecules_tab:"Molecules",
+      molecules_title:"Molecules",
+      substances_tab:"Substances",
+      substances_title:"Substances",
+      solar_tab:"Solar System",
+      solar_title:"Solar System Construction",
+      solar_building_label:"Currently Building",
+      solar_requirements_label:"Required Materials",
+      solar_transport_label:"Transport Device",
+      solar_queue_label:"Transport Queue",
+      transport_speed_label:"Transport Speed",
+      transport_slots_label:"Simultaneous Slots",
+      requirement_load_btn:"Load",
+      requirement_complete_label:"Complete",
+      queue_slot_empty:"Empty slot",
+      queue_slot_shipping:"{name} {amount} left",
+      body_complete_toast:"{name} complete!",
+      all_bodies_complete_toast:"The Solar System is complete!",
+      galaxy_label:"Galaxy Formation",
+      galaxy_complete_toast:"The galaxy is complete?!",
+      sell_mode_btn:"Sell Mode",
+      sell_mode_btn_active:"Sell Mode: ON",
+      unlock_toast_element:"{name} generation unlocked",
+      footer_text:"Tap to generate particles and build the elements",
+      settings_title:"Settings",
+      debug_mode_on:"Debug mode enabled",
+      debug_mode_off:"Debug mode disabled",
+      language_label:"Language",
+      save_label:"Save Data",
+      backup_label:"Backup",
+      export_btn:"Export",
+      import_btn:"Import",
+      import_confirm:"Importing will overwrite your current save data. Continue?",
+      import_success:"Save data loaded.",
+      import_error:"Failed to load save data. The file may be corrupted or in an unsupported format.",
+      reset_btn:"Reset",
+      close_btn:"Close",
+      reset_confirm:"Reset all save data? This cannot be undone."
+    }
+  };
+
+  // ============ 元素データ（周期表 1〜118番） ============
+  // 各元素: [原子番号(=陽子数=電子数), 元素記号, 日本語名, 英語名, 中性子数(代表同位体、概算)]
+  const ELEMENT_TABLE = [
+    [1,"H","水素","Hydrogen",0],[2,"He","ヘリウム","Helium",2],[3,"Li","リチウム","Lithium",4],
+    [4,"Be","ベリリウム","Beryllium",5],[5,"B","ホウ素","Boron",6],[6,"C","炭素","Carbon",7],
+    [7,"N","窒素","Nitrogen",7],[8,"O","酸素","Oxygen",9],[9,"F","フッ素","Fluorine",10],
+    [10,"Ne","ネオン","Neon",11],[11,"Na","ナトリウム","Sodium",12],[12,"Mg","マグネシウム","Magnesium",13],
+    [13,"Al","アルミニウム","Aluminium",14],[14,"Si","ケイ素","Silicon",15],[15,"P","リン","Phosphorus",16],
+    [16,"S","硫黄","Sulfur",17],[17,"Cl","塩素","Chlorine",18],[18,"Ar","アルゴン","Argon",22],
+    [19,"K","カリウム","Potassium",22],[20,"Ca","カルシウム","Calcium",24],[21,"Sc","スカンジウム","Scandium",24],
+    [22,"Ti","チタン","Titanium",26],[23,"V","バナジウム","Vanadium",28],[24,"Cr","クロム","Chromium",28],
+    [25,"Mn","マンガン","Manganese",30],[26,"Fe","鉄","Iron",30],[27,"Co","コバルト","Cobalt",32],
+    [28,"Ni","ニッケル","Nickel",32],[29,"Cu","銅","Copper",35],[30,"Zn","亜鉛","Zinc",35],
+    [31,"Ga","ガリウム","Gallium",39],[32,"Ge","ゲルマニウム","Germanium",41],[33,"As","ヒ素","Arsenic",42],
+    [34,"Se","セレン","Selenium",45],[35,"Br","臭素","Bromine",45],[36,"Kr","クリプトン","Krypton",48],
+    [37,"Rb","ルビジウム","Rubidium",48],[38,"Sr","ストロンチウム","Strontium",50],[39,"Y","イットリウム","Yttrium",50],
+    [40,"Zr","ジルコニウム","Zirconium",51],[41,"Nb","ニオブ","Niobium",52],[42,"Mo","モリブデン","Molybdenum",54],
+    [43,"Tc","テクネチウム","Technetium",55],[44,"Ru","ルテニウム","Ruthenium",57],[45,"Rh","ロジウム","Rhodium",58],
+    [46,"Pd","パラジウム","Palladium",60],[47,"Ag","銀","Silver",61],[48,"Cd","カドミウム","Cadmium",64],
+    [49,"In","インジウム","Indium",66],[50,"Sn","スズ","Tin",69],[51,"Sb","アンチモン","Antimony",70],
+    [52,"Te","テルル","Tellurium",76],[53,"I","ヨウ素","Iodine",76],[54,"Xe","キセノン","Xenon",77],
+    [55,"Cs","セシウム","Caesium",78],[56,"Ba","バリウム","Barium",81],[57,"La","ランタン","Lanthanum",82],
+    [58,"Ce","セリウム","Cerium",82],[59,"Pr","プラセオジム","Praseodymium",82],[60,"Nd","ネオジム","Neodymium",84],
+    [61,"Pm","プロメチウム","Promethium",84],[62,"Sm","サマリウム","Samarium",88],[63,"Eu","ユウロピウム","Europium",89],
+    [64,"Gd","ガドリニウム","Gadolinium",93],[65,"Tb","テルビウム","Terbium",94],[66,"Dy","ジスプロシウム","Dysprosium",97],
+    [67,"Ho","ホルミウム","Holmium",98],[68,"Er","エルビウム","Erbium",99],[69,"Tm","ツリウム","Thulium",100],
+    [70,"Yb","イッテルビウム","Ytterbium",103],[71,"Lu","ルテチウム","Lutetium",104],[72,"Hf","ハフニウム","Hafnium",106],
+    [73,"Ta","タンタル","Tantalum",108],[74,"W","タングステン","Tungsten",110],[75,"Re","レニウム","Rhenium",111],
+    [76,"Os","オスミウム","Osmium",114],[77,"Ir","イリジウム","Iridium",115],[78,"Pt","白金","Platinum",117],
+    [79,"Au","金","Gold",118],[80,"Hg","水銀","Mercury",121],[81,"Tl","タリウム","Thallium",123],
+    [82,"Pb","鉛","Lead",125],[83,"Bi","ビスマス","Bismuth",126],[84,"Po","ポロニウム","Polonium",126],
+    [85,"At","アスタチン","Astatine",128],[86,"Rn","ラドン","Radon",136],[87,"Fr","フランシウム","Francium",136],
+    [88,"Ra","ラジウム","Radium",138],[89,"Ac","アクチニウム","Actinium",138],[90,"Th","トリウム","Thorium",142],
+    [91,"Pa","プロトアクチニウム","Protactinium",142],[92,"U","ウラン","Uranium",146],[93,"Np","ネプツニウム","Neptunium",146],
+    [94,"Pu","プルトニウム","Plutonium",150],[95,"Am","アメリシウム","Americium",150],[96,"Cm","キュリウム","Curium",152],
+    [97,"Bk","バークリウム","Berkelium",152],[98,"Cf","カリホルニウム","Californium",154],[99,"Es","アインスタイニウム","Einsteinium",154],
+    [100,"Fm","フェルミウム","Fermium",157],[101,"Md","メンデレビウム","Mendelevium",157],[102,"No","ノーベリウム","Nobelium",159],
+    [103,"Lr","ローレンシウム","Lawrencium",163],[104,"Rf","ラザホージウム","Rutherfordium",163],[105,"Db","ドブニウム","Dubnium",163],
+    [106,"Sg","シーボーギウム","Seaborgium",163],[107,"Bh","ボーリウム","Bohrium",163],[108,"Hs","ハッシウム","Hassium",169],
+    [109,"Mt","マイトネリウム","Meitnerium",169],[110,"Ds","ダームスタチウム","Darmstadtium",171],[111,"Rg","レントゲニウム","Roentgenium",178],
+    [112,"Cn","コペルニシウム","Copernicium",173],[113,"Nh","ニホニウム","Nihonium",173],[114,"Fl","フレロビウム","Flerovium",175],
+    [115,"Mc","モスコビウム","Moscovium",174],[116,"Lv","リバモリウム","Livermorium",177],[117,"Ts","テネシン","Tennessine",177],
+    [118,"Og","オガネソン","Oganesson",178]
+  ].map(function(row){
+    return {
+      z:row[0], symbol:row[1], ja:row[2], en:row[3],
+      protons:row[0], electrons:row[0], neutrons:row[4]
+    };
+  });
+
+  // ============ 元素の合成レシピ（現実の生成経路に基づく） ============
+  // 水素(index 0)のみ素粒子から生成。以降は「元素記号」または中性子"n"の組み合わせで生成する。
+  // 2〜26番: 恒星内部の核融合を簡略化したモデル（陽子捕獲・アルファ過程を交互に再現）
+  // 27〜92番: 中性子捕獲（s過程・r過程）を簡略化し、直前の元素+中性子で次の元素を生成
+  // 93〜118番: 実際に人類が合成した際の標的+入射粒子の組み合わせを再現
+  const ELEMENT_RECIPES_RAW = [
+    [], // H: 素粒子から生成（既存仕様のまま）
+    ["H","H","n","n"],       // He
+    ["He","H","n","n"],       // Li
+    ["He","He","n"],       // Be
+    ["Be","H","n"],       // B
+    ["Be","He"],       // C
+    ["C","H"],       // N
+    ["C","He"],       // O
+    ["O","H","n"],       // F
+    ["O","He"],       // Ne
+    ["Ne","H","n"],       // Na
+    ["Ne","He"],       // Mg
+    ["Mg","H","n"],       // Al
+    ["Mg","He"],       // Si
+    ["Si","H","n"],       // P
+    ["Si","He"],       // S
+    ["S","H","n"],       // Cl
+    ["S","He","n","n","n"],       // Ar
+    ["Ar","H"],       // K
+    ["Ar","He"],       // Ca
+    ["Ca","H"],       // Sc
+    ["Ca","He"],       // Ti
+    ["Ti","H","n","n"],       // V
+    ["Ti","He"],       // Cr
+    ["Cr","H","n","n"],       // Mn
+    ["Cr","He"],       // Fe
+    ["Fe","n","n"],       // Co
+    ["Co"],       // Ni
+    ["Ni","n","n","n"],       // Cu
+    ["Cu"],       // Zn
+    ["Zn","n","n","n","n"],       // Ga
+    ["Ga","n","n"],       // Ge
+    ["Ge","n"],       // As
+    ["As","n","n","n"],       // Se
+    ["Se"],       // Br
+    ["Br","n","n","n"],       // Kr
+    ["Kr"],       // Rb
+    ["Rb","n","n"],       // Sr
+    ["Sr"],       // Y
+    ["Y","n"],       // Zr
+    ["Zr","n"],       // Nb
+    ["Nb","n","n"],       // Mo
+    ["Mo","n"],       // Tc
+    ["Tc","n","n"],       // Ru
+    ["Ru","n"],       // Rh
+    ["Rh","n","n"],       // Pd
+    ["Pd","n"],       // Ag
+    ["Ag","n","n","n"],       // Cd
+    ["Cd","n","n"],       // In
+    ["In","n","n","n"],       // Sn
+    ["Sn","n"],       // Sb
+    ["Sb","n","n","n","n","n","n"],       // Te
+    ["Te"],       // I
+    ["I","n"],       // Xe
+    ["Xe","n"],       // Cs
+    ["Cs","n","n","n"],       // Ba
+    ["Ba","n"],       // La
+    ["La"],       // Ce
+    ["Ce"],       // Pr
+    ["Pr","n","n"],       // Nd
+    ["Nd"],       // Pm
+    ["Pm","n","n","n","n"],       // Sm
+    ["Sm","n"],       // Eu
+    ["Eu","n","n","n","n"],       // Gd
+    ["Gd","n"],       // Tb
+    ["Tb","n","n","n"],       // Dy
+    ["Dy","n"],       // Ho
+    ["Ho","n"],       // Er
+    ["Er","n"],       // Tm
+    ["Tm","n","n","n"],       // Yb
+    ["Yb","n"],       // Lu
+    ["Lu","n","n"],       // Hf
+    ["Hf","n","n"],       // Ta
+    ["Ta","n","n"],       // W
+    ["W","n"],       // Re
+    ["Re","n","n","n"],       // Os
+    ["Os","n"],       // Ir
+    ["Ir","n","n"],       // Pt
+    ["Pt","n"],       // Au
+    ["Au","n","n","n"],       // Hg
+    ["Hg","n","n"],       // Tl
+    ["Tl","n","n"],       // Pb
+    ["Pb","n"],       // Bi
+    ["Bi"],       // Po
+    ["Bi","He"],       // At
+    ["At","n","n","n","n","n","n","n","n"],       // Rn
+    ["Rn"],       // Fr
+    ["Fr","n","n"],       // Ra
+    ["Ra"],       // Ac
+    ["Ac","n","n","n","n"],       // Th
+    ["Th"],       // Pa
+    ["Pa","n","n","n","n"],       // U
+    ["U"],       // Np
+    ["Np","n","n","n","n"],       // Pu
+    ["Pu"],       // Am
+    ["Pu","He"],       // Cm
+    ["Am","He"],       // Bk
+    ["Cm","He"],       // Cf
+    ["Cf"],       // Es
+    ["Es","n","n","n"],       // Fm
+    ["Es","He","n"],       // Md
+    ["Cm","C"],       // No
+    ["Cf","B","n","n","n"],       // Lr
+    ["Cf","C","n","n"],       // Rf
+    ["Cf","N","n","n"],       // Db
+    ["Cf","O"],       // Sg
+    ["Bi","Cr","n","n","n","n","n","n","n","n","n"],       // Bh
+    ["Pb","Fe","n","n","n","n","n","n","n","n","n","n","n","n","n","n"],       // Hs
+    ["Bi","Fe","n","n","n","n","n","n","n","n","n","n","n","n","n"],       // Mt
+    ["Pb","Ni","n","n","n","n","n","n","n","n","n","n","n","n","n","n"],       // Ds
+    ["Bi","Ni","n","n","n","n","n","n","n","n","n","n","n","n","n","n","n","n","n","n","n","n"],       // Rg
+    ["Pb","Zn","n","n","n","n","n","n","n","n","n","n","n","n","n"],       // Cn
+    ["Bi","Zn","n","n","n","n","n","n","n","n","n","n","n","n"],       // Nh
+    ["Pu","Ca","n"],       // Fl
+    ["Am","Ca"],       // Mc
+    ["Cm","Ca","n"],       // Lv
+    ["Bk","Ca","n"],       // Ts
+    ["Cf","Ca"],       // Og
+  ];
+
+  const ELEMENT_SYMBOL_TO_INDEX = {};
+  ELEMENT_TABLE.forEach(function(e, idx){ ELEMENT_SYMBOL_TO_INDEX[e.symbol] = idx; });
+
+  // 生の記号リストを「必要な元素(index+個数)」と「必要な中性子数」に集計する
+  const ELEMENT_RECIPES = ELEMENT_RECIPES_RAW.map(function(raw){
+    if(raw.length === 0) return null; // 水素は素粒子レシピ（craftElementで別処理）
+    const elementInputs = {}; // index -> count
+    let neutronCount = 0;
+    raw.forEach(function(token){
+      if(token === "n"){
+        neutronCount += 1;
+      } else {
+        const idx = ELEMENT_SYMBOL_TO_INDEX[token];
+        elementInputs[idx] = (elementInputs[idx] || 0) + 1;
+      }
+    });
+    return {
+      elements:Object.keys(elementInputs).map(function(idx){ return { index:Number(idx), count:elementInputs[idx] }; }),
+      neutrons:neutronCount
+    };
+  });
+
+  // ============ 分子データ（Tier1〜6、化学式に基づく実際の元素組成） ============
+  const MOLECULE_TABLE_RAW = [
+    // Tier1: 基本分子
+    { formula:"H₂O", ja:"水", en:"Water", recipe:[["H",2],["O",1]], state:"liquid" },
+    { formula:"CO₂", ja:"二酸化炭素", en:"Carbon Dioxide", recipe:[["C",1],["O",2]], state:"gas" },
+    { formula:"NH₃", ja:"アンモニア", en:"Ammonia", recipe:[["N",1],["H",3]], state:"gas" },
+    { formula:"CH₄", ja:"メタン", en:"Methane", recipe:[["C",1],["H",4]], state:"gas" },
+    { formula:"O₂", ja:"酸素", en:"Oxygen Gas", recipe:[["O",2]], state:"gas" },
+    { formula:"N₂", ja:"窒素", en:"Nitrogen Gas", recipe:[["N",2]], state:"gas" },
+    { formula:"H₂", ja:"水素ガス", en:"Hydrogen Gas", recipe:[["H",2]], state:"gas" },
+    // Tier2: 酸・塩基・塩
+    { formula:"HCl", ja:"塩酸", en:"Hydrochloric Acid", recipe:[["H",1],["Cl",1]], state:"gas" },
+    { formula:"H₂SO₄", ja:"硫酸", en:"Sulfuric Acid", recipe:[["H",2],["S",1],["O",4]], state:"liquid" },
+    { formula:"NaOH", ja:"水酸化ナトリウム", en:"Sodium Hydroxide", recipe:[["Na",1],["O",1],["H",1]], state:"solid" },
+    { formula:"NaCl", ja:"塩化ナトリウム", en:"Sodium Chloride", recipe:[["Na",1],["Cl",1]], state:"solid" },
+    { formula:"CaCO₃", ja:"炭酸カルシウム", en:"Calcium Carbonate", recipe:[["Ca",1],["C",1],["O",3]], state:"solid" },
+    // Tier3: 酸化物・工業素材
+    { formula:"SiO₂", ja:"二酸化ケイ素", en:"Silicon Dioxide", recipe:[["Si",1],["O",2]], state:"solid" },
+    { formula:"Fe₂O₃", ja:"酸化鉄", en:"Iron Oxide", recipe:[["Fe",2],["O",3]], state:"solid" },
+    { formula:"Al₂O₃", ja:"酸化アルミニウム", en:"Aluminium Oxide", recipe:[["Al",2],["O",3]], state:"solid" },
+    { formula:"CO", ja:"一酸化炭素", en:"Carbon Monoxide", recipe:[["C",1],["O",1]], state:"gas" },
+    // Tier4: 燃料系
+    { formula:"C₈H₁₈", ja:"オクタン（石油）", en:"Octane (Oil)", recipe:[["C",8],["H",18]], state:"liquid" },
+    // Tier5: 有機・生体系
+    { formula:"C₆H₁₂O₆", ja:"グルコース", en:"Glucose", recipe:[["C",6],["H",12],["O",6]], state:"solid" },
+    { formula:"C₂H₆O", ja:"エタノール", en:"Ethanol", recipe:[["C",2],["H",6],["O",1]], state:"liquid" },
+    // Tier6: 特殊枠
+    { formula:"XeF₂", ja:"二フッ化キセノン", en:"Xenon Difluoride", recipe:[["Xe",1],["F",2]], state:"solid" },
+    { formula:"UO₂", ja:"二酸化ウラン", en:"Uranium Dioxide", recipe:[["U",1],["O",2]], state:"solid" },
+    { formula:"PuO₂", ja:"二酸化プルトニウム", en:"Plutonium Dioxide", recipe:[["Pu",1],["O",2]], state:"solid" }
+  ];
+
+  const MOLECULE_TABLE = MOLECULE_TABLE_RAW.map(function(m){
+    return {
+      formula:m.formula, ja:m.ja, en:m.en, state:m.state,
+      recipe:m.recipe.map(function(pair){
+        return { index:ELEMENT_SYMBOL_TO_INDEX[pair[0]], symbol:pair[0], count:pair[1] };
+      })
+    };
+  });
+
+  const MOLECULE_FORMULA_TO_INDEX = {};
+  MOLECULE_TABLE.forEach(function(m, idx){ MOLECULE_FORMULA_TO_INDEX[m.formula] = idx; });
+
+  // ============ 物質データ（元素・分子を組み合わせて作る、より実用的なアイテム群） ============
+  const SUBSTANCE_TABLE_RAW = [
+    { ja:"空気", en:"Air", recipe:[["m","N₂",4],["m","O₂",1]] },
+    { ja:"海水", en:"Seawater", recipe:[["m","H₂O",20],["m","NaCl",1]] },
+    { ja:"氷", en:"Ice", recipe:[["m","H₂O",10]] },
+    { ja:"岩石", en:"Rock", recipe:[["m","SiO₂",3],["m","CaCO₃",1]] },
+    { ja:"ガラス", en:"Glass", recipe:[["m","SiO₂",5]] },
+    { ja:"鋼鉄", en:"Steel", recipe:[["e","Fe",9],["e","C",1]] },
+    { ja:"青銅", en:"Bronze", recipe:[["e","Cu",9],["e","Sn",1]] },
+    { ja:"合金の金", en:"Gold Alloy", recipe:[["e","Au",3],["e","Ag",1]] },
+    { ja:"木材", en:"Wood", recipe:[["m","C₆H₁₂O₆",2],["m","H₂O",3]] },
+    { ja:"プラスチック", en:"Plastic", recipe:[["m","C₈H₁₈",2]] },
+    { ja:"燃料", en:"Fuel", recipe:[["m","C₈H₁₈",1]] },
+    { ja:"半導体", en:"Semiconductor", recipe:[["e","Si",20],["e","B",1]] }
+  ];
+
+  const SUBSTANCE_TABLE = SUBSTANCE_TABLE_RAW.map(function(s){
+    return {
+      ja:s.ja, en:s.en,
+      recipe:s.recipe.map(function(triple){
+        const kind = triple[0] === "e" ? "element" : "molecule";
+        const key = triple[1];
+        const index = kind === "element" ? ELEMENT_SYMBOL_TO_INDEX[key] : MOLECULE_FORMULA_TO_INDEX[key];
+        return { kind:kind, index:index, symbol:key, count:triple[2] };
+      })
+    };
+  });
+
+  const SUBSTANCE_NAME_TO_INDEX = {};
+  SUBSTANCE_TABLE.forEach(function(s, idx){ SUBSTANCE_NAME_TO_INDEX[s.ja] = idx; });
+
+  // ============ 太陽系データ（送出装置で太陽から冥王星まで順番に構築する） ============
+  function resolveTriple(triple){
+    if(triple[0] === "p"){
+      return { kind:"particle", stateKey:triple[1], symbol:triple[1], count:triple[2] };
+    }
+    const kind = triple[0] === "e" ? "element" : triple[0] === "m" ? "molecule" : "substance";
+    const key = triple[1];
+    const index =
+      kind === "element" ? ELEMENT_SYMBOL_TO_INDEX[key] :
+      kind === "molecule" ? MOLECULE_FORMULA_TO_INDEX[key] :
+      SUBSTANCE_NAME_TO_INDEX[key];
+    return { kind:kind, index:index, symbol:key, count:triple[2] };
+  }
+
+  const CELESTIAL_BODIES_RAW = [
+    { ja:"太陽", en:"The Sun", req:[["e","H",5000],["e","He",1500]] },
+    { ja:"水星", en:"Mercury", req:[["e","Fe",300],["s","岩石",100]] },
+    { ja:"金星", en:"Venus", req:[["s","岩石",400],["m","CO₂",200],["s","鋼鉄",50]] },
+    { ja:"地球", en:"Earth", req:[["s","岩石",400],["s","海水",150],["s","鋼鉄",100],["s","空気",100]] },
+    { ja:"火星", en:"Mars", req:[["s","岩石",300],["m","CO₂",80],["s","氷",50],["e","Fe",80]] },
+    { ja:"木星", en:"Jupiter", req:[["m","H₂",2000],["e","He",600],["m","NH₃",100],["m","CH₄",100]] },
+    { ja:"土星", en:"Saturn", req:[["m","H₂",1600],["e","He",450],["m","CH₄",100],["s","氷",200]] },
+    { ja:"天王星", en:"Uranus", req:[["m","H₂",500],["e","He",150],["m","CH₄",150],["s","氷",300]] },
+    { ja:"海王星", en:"Neptune", req:[["m","H₂",550],["e","He",160],["m","CH₄",160],["s","氷",320]] },
+    { ja:"冥王星", en:"Pluto", req:[["s","氷",150],["s","岩石",80],["m","N₂",50],["m","CH₄",30]] }
+  ];
+
+  const CELESTIAL_BODIES = CELESTIAL_BODIES_RAW.map(function(b){
+    return { ja:b.ja, en:b.en, requirements:b.req.map(resolveTriple) };
+  });
+
+  // ============ 銀河生成（太陽系完成後のエンドコンテンツ。全ての元素・分子・物質を超大量に要求する） ============
+  const GALAXY_ELEMENT_UNIT_PER_Z = 1000; // 元素は原子番号×この数
+  const GALAXY_MOLECULE_AMOUNT = 50000;
+  const GALAXY_SUBSTANCE_AMOUNT = 100000;
+
+  const GALAXY_REQUIREMENTS = [];
+  ELEMENT_TABLE.forEach(function(e, idx){
+    GALAXY_REQUIREMENTS.push({ kind:"element", index:idx, symbol:e.symbol, count:GALAXY_ELEMENT_UNIT_PER_Z * (idx + 1) });
+  });
+  MOLECULE_TABLE.forEach(function(m, idx){
+    GALAXY_REQUIREMENTS.push({ kind:"molecule", index:idx, symbol:m.formula, count:GALAXY_MOLECULE_AMOUNT });
+  });
+  SUBSTANCE_TABLE.forEach(function(s, idx){
+    GALAXY_REQUIREMENTS.push({ kind:"substance", index:idx, symbol:s.ja, count:GALAXY_SUBSTANCE_AMOUNT });
+  });
+
+  // pairs: [[記号/名前,個数], ...] を {kind,index,symbol,count} の配列に変換
+  // kind省略時は元素として解決。"molecule"で分子、"substance"で物質を参照できる
+  function costList(pairs, kind){
+    kind = kind || "element";
+    return pairs.map(function(p){
+      const index =
+        kind === "element" ? ELEMENT_SYMBOL_TO_INDEX[p[0]] :
+        kind === "molecule" ? MOLECULE_FORMULA_TO_INDEX[p[0]] :
+        SUBSTANCE_NAME_TO_INDEX[p[0]];
+      return { kind:kind, index:index, symbol:p[0], count:p[1] };
+    });
+  }
+
+  const WINDUP_OUTPUT = 20; // MW（発電中の出力）
+  const WINDUP_TAP_SECONDS = 5; // タップ1回で延長される発電時間（秒）
+  const WINDUP_MAX_SECONDS = 300; // 発電時間の上限（5分）
+
+  const GENERATOR_CONFIGS = {
+    coal:{
+      nameKey:"gen_coal_name",
+      buildCost:costList([["Fe",15]]),
+      fuel:costList([["C",1]]),
+      output:5,
+      fuelIntervalTicks:30
+    },
+    oil:{
+      nameKey:"gen_oil_name",
+      buildCost:costList([["Fe",15],["Cu",5]]),
+      fuel:costList([["燃料",1]], "substance"), // 物質の「燃料」を消費する
+      output:12,
+      fuelIntervalTicks:30
+    },
+    solar:{
+      nameKey:"gen_solar_name",
+      buildCost:costList([["Si",20],["Ag",5],["Al",10]]),
+      fuel:[],
+      output:3,
+      fuelIntervalTicks:1
+    },
+    fission:{
+      nameKey:"gen_fission_name",
+      buildCost:costList([["Fe",30],["Pb",10],["B",5],["Zr",10]]),
+      fuel:costList([["U",1]]),
+      fuelAlt:costList([["Pu",1]]),
+      output:40,
+      fuelIntervalTicks:30
+    },
+    fusion:{
+      nameKey:"gen_fusion_name",
+      buildCost:costList([["W",20],["Nb",20],["Be",10]]),
+      fuel:costList([["H",1]]),
+      output:100,
+      fuelIntervalTicks:30
+    }
+  };
+  const GENERATOR_TYPES = ["coal","oil","solar","fission","fusion"];
+
+  const AUTO_PRODUCER_BUILD_COST = costList([["Fe",3],["Cu",2]]);
+  const PARTICLE_KEYS = ["proton","electron","neutron"];
+  const AUTO_PRODUCER_RATE = 0.5; // 生成数/秒（1台あたり）
+  const AUTO_PRODUCER_POWER_DRAW = 1; // MW（1台あたり）
+
+  // ============ 送出装置（太陽系構築） ============
+  const QUEUE_SLOT_CAPACITY = 50; // 1枠あたりの輸送待ち上限
+  const TRANSPORT_SPEED_BASE = 1; // 個/秒（初期）
+  const TRANSPORT_SLOTS_BASE = 1; // 同時輸送数（初期）
+  const TRANSPORT_SPEED_CONFIG = { baseCost:80, growth:1.7 };
+  const TRANSPORT_SLOTS_CONFIG = { baseCost:300, growth:2.0 };
+
+  // ============ リワード広告（モック） ============
+  const REWARD_AD_AMOUNT = 50; // 視聴で獲得できる個数
+  const REWARD_AD_COOLDOWN_SECONDS = 180; // 1回視聴したら次に出せるまでの時間
+  const REWARD_AD_PLAY_SECONDS = 5; // モック広告の再生時間
+  const GENERATOR_BUFF_MULTIPLIER = 3; // 稼働時間/発電量の倍率
+  const GENERATOR_BUFF_DURATION_MS = 24 * 60 * 60 * 1000; // 効果時間（24時間、実時間ベース）
+
+  // ============ ゲーム状態 ============
+  // 分子のカテゴリ分類（気体/液体/固体）。研究ツリーのカテゴリ別解放に使う
+  const MOLECULE_CATEGORIES = {
+    gas:["CO₂","NH₃","CH₄","O₂","N₂","H₂","HCl","CO"],
+    liquid:["H₂O","H₂SO₄","C₈H₁₈","C₂H₆O"],
+    solid:["NaOH","NaCl","CaCO₃","SiO₂","Fe₂O₃","Al₂O₃","C₆H₁₂O₆","XeF₂","UO₂","PuO₂"]
+  };
+
+  // 研究ツリー: 「前段階で生成したものを納品する」ことで次の研究が解放され、
+  // 対応する機能（電子生成・中性子生成・元素合成・各タブ・各元素/分子カテゴリ/発電機種別）が1つずつアンロックされる。
+  // parentId で親子関係を持たせた分岐ツリー構造（同じparentIdを持つ複数ノードは兄弟＝同時に分岐する）
+  // unlock: { type:"flag", key:<stateのbooleanフィールド名> }
+  //       | { type:"generatorType", key:<GENERATOR_TYPESの種別名> }
+  //       | { type:"moleculeCategory", key:"gas"|"liquid"|"solid" }
+  //       | { type:"substanceItem", key:<物質の日本語名> }
+  const RESEARCH_NODES_RAW = [
+    { id:"electron_theory", parentId:null, nameKey:"research_node_electron", unlock:{type:"flag", key:"electronUnlocked"}, toastKey:"unlock_toast_electron", req:[["p","protons",50]] },
+    { id:"neutron_theory", parentId:"electron_theory", nameKey:"research_node_neutron", unlock:{type:"flag", key:"neutronUnlocked"}, toastKey:"unlock_toast_neutron", req:[["p","electrons",50]] },
+    { id:"synthesis_theory", parentId:"neutron_theory", nameKey:"research_node_synthesis", unlock:{type:"flag", key:"elementSynthesisUnlocked"}, toastKey:"unlock_toast_elements", showHelp:true, req:[["p","neutrons",50]] },
+
+    // 枝1: 貯蔵・動力・発電機チェーン
+    { id:"storage_theory", parentId:"synthesis_theory", nameKey:"research_node_storage", unlock:{type:"flag", key:"warehouseUnlocked"}, toastKey:"unlock_toast_warehouse", req:[["e","He",10]] },
+    { id:"power_theory", parentId:"storage_theory", nameKey:"research_node_power", unlock:{type:"flag", key:"powerUnlocked"}, toastKey:"unlock_toast_power", req:[["e","Fe",20],["e","Cu",10]] },
+    { id:"gen_coal_theory", parentId:"power_theory", nameKey:"research_node_gen_coal", unlock:{type:"generatorType", key:"coal"}, toastKey:"unlock_toast_gen_coal", req:[["e","C",20]] },
+    { id:"gen_oil_theory", parentId:"gen_coal_theory", nameKey:"research_node_gen_oil", unlock:{type:"generatorType", key:"oil"}, toastKey:"unlock_toast_gen_oil", req:[["e","C",10],["e","H",10]] },
+    { id:"gen_solar_theory", parentId:"gen_oil_theory", nameKey:"research_node_gen_solar", unlock:{type:"generatorType", key:"solar"}, toastKey:"unlock_toast_gen_solar", req:[["e","Si",15]] },
+    { id:"gen_fission_theory", parentId:"gen_solar_theory", nameKey:"research_node_gen_fission", unlock:{type:"generatorType", key:"fission"}, toastKey:"unlock_toast_gen_fission", req:[["e","U",5]] },
+    { id:"gen_fusion_theory", parentId:"gen_fission_theory", nameKey:"research_node_gen_fusion", unlock:{type:"generatorType", key:"fusion"}, toastKey:"unlock_toast_gen_fusion", req:[["e","H",30]] },
+
+    // 枝2: 分子・物質・太陽系チェーン
+    { id:"molecular_theory", parentId:"synthesis_theory", nameKey:"research_node_molecular", unlock:{type:"flag", key:"moleculesUnlocked"}, toastKey:"unlock_toast_molecules", req:[["e","O",20],["e","H",20]] },
+    { id:"mol_gas_theory", parentId:"molecular_theory", nameKey:"research_node_mol_gas", unlock:{type:"moleculeCategory", key:"gas"}, toastKey:"unlock_toast_mol_gas", req:[["e","H",10],["e","O",10]] },
+    { id:"mol_liquid_theory", parentId:"molecular_theory", nameKey:"research_node_mol_liquid", unlock:{type:"moleculeCategory", key:"liquid"}, toastKey:"unlock_toast_mol_liquid", req:[["e","C",10],["e","H",20]] },
+    { id:"mol_solid_theory", parentId:"molecular_theory", nameKey:"research_node_mol_solid", unlock:{type:"moleculeCategory", key:"solid"}, toastKey:"unlock_toast_mol_solid", req:[["e","Na",10],["e","Cl",10]] },
+    { id:"materials_theory", parentId:"molecular_theory", nameKey:"research_node_materials", unlock:{type:"flag", key:"substancesUnlocked"}, toastKey:"unlock_toast_substances", req:[["m","H₂O",10]] },
+
+    { id:"sub_air", parentId:"materials_theory", nameKey:"research_node_sub_air", unlock:{type:"substanceItem", key:"空気"}, toastKey:"unlock_toast_substance_item", req:[["e","N",10],["e","O",5]] },
+    { id:"sub_seawater", parentId:"materials_theory", nameKey:"research_node_sub_seawater", unlock:{type:"substanceItem", key:"海水"}, toastKey:"unlock_toast_substance_item", req:[["e","Na",5],["e","Cl",5]] },
+    { id:"sub_ice", parentId:"materials_theory", nameKey:"research_node_sub_ice", unlock:{type:"substanceItem", key:"氷"}, toastKey:"unlock_toast_substance_item", req:[["e","H",10],["e","O",5]] },
+    { id:"sub_rock", parentId:"materials_theory", nameKey:"research_node_sub_rock", unlock:{type:"substanceItem", key:"岩石"}, toastKey:"unlock_toast_substance_item", req:[["e","Si",10],["e","Ca",5]] },
+    { id:"sub_glass", parentId:"materials_theory", nameKey:"research_node_sub_glass", unlock:{type:"substanceItem", key:"ガラス"}, toastKey:"unlock_toast_substance_item", req:[["e","Si",10]] },
+    { id:"sub_steel", parentId:"materials_theory", nameKey:"research_node_sub_steel", unlock:{type:"substanceItem", key:"鋼鉄"}, toastKey:"unlock_toast_substance_item", req:[["e","Fe",10],["e","C",5]] },
+    { id:"sub_bronze", parentId:"materials_theory", nameKey:"research_node_sub_bronze", unlock:{type:"substanceItem", key:"青銅"}, toastKey:"unlock_toast_substance_item", req:[["e","Cu",10],["e","Sn",5]] },
+    { id:"sub_goldalloy", parentId:"materials_theory", nameKey:"research_node_sub_goldalloy", unlock:{type:"substanceItem", key:"合金の金"}, toastKey:"unlock_toast_substance_item", req:[["e","Au",5],["e","Ag",5]] },
+    { id:"sub_wood", parentId:"materials_theory", nameKey:"research_node_sub_wood", unlock:{type:"substanceItem", key:"木材"}, toastKey:"unlock_toast_substance_item", req:[["e","C",10],["e","H",10]] },
+    { id:"sub_plastic", parentId:"materials_theory", nameKey:"research_node_sub_plastic", unlock:{type:"substanceItem", key:"プラスチック"}, toastKey:"unlock_toast_substance_item", req:[["e","C",15],["e","H",15]] },
+    { id:"sub_fuel", parentId:"materials_theory", nameKey:"research_node_sub_fuel", unlock:{type:"substanceItem", key:"燃料"}, toastKey:"unlock_toast_substance_item", req:[["e","C",10],["e","H",10]] },
+    { id:"sub_semiconductor", parentId:"materials_theory", nameKey:"research_node_sub_semiconductor", unlock:{type:"substanceItem", key:"半導体"}, toastKey:"unlock_toast_substance_item", req:[["e","Si",15],["e","B",5]] },
+
+    { id:"astro_theory", parentId:"materials_theory", nameKey:"research_node_astro", unlock:{type:"flag", key:"solarUnlocked"}, toastKey:"unlock_toast_solar", req:[["s","鋼鉄",10]] }
+  ];
+
+  const RESEARCH_NODES = RESEARCH_NODES_RAW.map(function(n){
+    return {
+      id:n.id, parentId:n.parentId, nameKey:n.nameKey, unlock:n.unlock, toastKey:n.toastKey, showHelp:!!n.showHelp,
+      requirements:n.req.map(resolveTriple)
+    };
+  });
+
+  // id -> index の対応表と、親id -> 子indexリストの対応表（ツリー描画・解放判定に使う）
+  const RESEARCH_ID_TO_INDEX = {};
+  RESEARCH_NODES.forEach(function(n, idx){ RESEARCH_ID_TO_INDEX[n.id] = idx; });
+  const RESEARCH_CHILDREN_MAP = {};
+  RESEARCH_NODES.forEach(function(n, idx){
+    const key = n.parentId || "__root__";
+    if(!RESEARCH_CHILDREN_MAP[key]) RESEARCH_CHILDREN_MAP[key] = [];
+    RESEARCH_CHILDREN_MAP[key].push(idx);
+  });
+
+  // ============ タスク型チュートリアル ============
+  // 「生産してください」→条件達成で次へ→「納品してください」→条件達成で次へ、を3セット（陽子/電子/中性子）繰り返す
+  const TUTORIAL_FLOW = [
+    { textKey:"tutorial_produce_proton", done:function(){ return Math.floor(state.protons) >= 50 || state.electronUnlocked; } },
+    { textKey:"tutorial_deliver_proton", done:function(){ return state.electronUnlocked; } },
+    { textKey:"tutorial_produce_electron", done:function(){ return Math.floor(state.electrons) >= 50 || state.neutronUnlocked; } },
+    { textKey:"tutorial_deliver_electron", done:function(){ return state.neutronUnlocked; } },
+    { textKey:"tutorial_produce_neutron", done:function(){ return Math.floor(state.neutrons) >= 50 || state.elementSynthesisUnlocked; } },
+    { textKey:"tutorial_deliver_neutron", done:function(){ return state.elementSynthesisUnlocked; } }
+  ];
+
+  const SAVE_KEY = "genso_clicker_save_v1";
+
+  const INITIAL_CAP = 50;
+  const CAP_STEP = 50;
+  const SELL_ENERGY_PER_PARTICLE = 1;
+
+  // 上限拡張の設定（拡張回数ごとにコストが growth 倍で上昇）
+  const CAP_CONFIGS = {
+    proton:{ baseCost:20, growth:1.6 },
+    electron:{ baseCost:40, growth:1.6 },
+    neutron:{ baseCost:80, growth:1.6 },
+    element:{ baseCost:150, growth:1.8 },
+    molecule:{ baseCost:100, growth:1.7 },
+    substance:{ baseCost:200, growth:1.7 }
+  };
+
+  let state = {
+    protons:0,
+    electrons:0,
+    neutrons:0,
+    energy:0,
+    protonCap:INITIAL_CAP,
+    electronCap:INITIAL_CAP,
+    neutronCap:INITIAL_CAP,
+    protonCapLevel:0,
+    electronCapLevel:0,
+    neutronCapLevel:0,
+    elementCaps:new Array(ELEMENT_TABLE.length).fill(INITIAL_CAP),
+    elementCapLevels:new Array(ELEMENT_TABLE.length).fill(0),
+    electronUnlocked:false,
+    neutronUnlocked:false,
+    elementSynthesisUnlocked:false,
+    warehouseUnlocked:false,
+    powerUnlocked:false,
+    moleculesUnlocked:false,
+    substancesUnlocked:false,
+    solarUnlocked:false,
+    generatorTypeUnlocked:{ coal:false, oil:false, solar:false, fission:false, fusion:false },
+    moleculeCategoryUnlocked:{ gas:false, liquid:false, solid:false },
+    substanceItemUnlocked:new Array(SUBSTANCE_TABLE.length).fill(false),
+    researchProgress:RESEARCH_NODES.map(function(n){ return new Array(n.requirements.length).fill(0); }),
+    tutorialStepIndex:0,
+    tutorialDismissed:false,
+    rewardAdCooldownRemaining:0,
+    windupDurationBuffExpiresAt:0,
+    windupOutputBuffExpiresAt:0,
+    tapPowerLevel:{ proton:0, electron:0, neutron:0 },
+    elementsUnlockedCount:1,
+    elementCounts:new Array(ELEMENT_TABLE.length).fill(0),
+    generatorOwned:{ coal:0, oil:0, solar:0, fission:0, fusion:0 },
+    generatorUnitTimers:{ coal:[], oil:[], fission:[], fusion:[] },
+    windupTimeRemaining:0,
+    autoAssigned:{
+      particle:{ proton:0, electron:0, neutron:0 },
+      element:new Array(ELEMENT_TABLE.length).fill(0),
+      molecule:new Array(MOLECULE_TABLE.length).fill(0),
+      substance:new Array(SUBSTANCE_TABLE.length).fill(0)
+    },
+    autoProgress:{
+      particle:{ proton:0, electron:0, neutron:0 },
+      element:new Array(ELEMENT_TABLE.length).fill(0),
+      molecule:new Array(MOLECULE_TABLE.length).fill(0),
+      substance:new Array(SUBSTANCE_TABLE.length).fill(0)
+    },
+    powerGen:0,
+    powerDemand:0,
+    moleculeCounts:new Array(MOLECULE_TABLE.length).fill(0),
+    moleculeCaps:new Array(MOLECULE_TABLE.length).fill(INITIAL_CAP),
+    moleculeCapLevels:new Array(MOLECULE_TABLE.length).fill(0),
+    substanceCounts:new Array(SUBSTANCE_TABLE.length).fill(0),
+    substanceCaps:new Array(SUBSTANCE_TABLE.length).fill(INITIAL_CAP),
+    substanceCapLevels:new Array(SUBSTANCE_TABLE.length).fill(0),
+    currentBodyIndex:0,
+    currentBodyProgress:new Array(CELESTIAL_BODIES[0].requirements.length).fill(0),
+    buildMode:"solar", // "solar"=太陽系構築中, "galaxy"=太陽系完成後の銀河生成（エンドコンテンツ）
+    galaxyProgress:new Array(GALAXY_REQUIREMENTS.length).fill(0),
+    transportSpeedLevel:0,
+    transportSlotsLevel:0,
+    transportSpeed:TRANSPORT_SPEED_BASE,
+    transportSlots:TRANSPORT_SLOTS_BASE,
+    transportQueue:new Array(TRANSPORT_SLOTS_BASE).fill(null).map(function(){ return { reqIndex:null, remaining:0 }; }),
+    lang:"ja"
+  };
+
+  let sellMode = false; // 売却モードのON/OFF（保存不要のUI状態）
+  let debugMode = false; // デバッグモード: ONの間は全ての消費・上限チェックをバイパスする（保存不要のUI状態）
+  // 【今後の実装ルール】新しく「生成/購入/拡張」する機能を追加する場合、
+  // 判定・消費処理の先頭を `if(!debugMode){ ...在庫チェック・消費... }` の形にすること。
+  // こうしておけば新機能もデバッグモードに自動的に対応する。
+
+  // ============ DOM参照 ============
+  const el = {
+    protonCount:document.getElementById("protonCount"),
+    electronCount:document.getElementById("electronCount"),
+    neutronCount:document.getElementById("neutronCount"),
+    energyBadge:document.getElementById("energyBadge"),
+    elementsSection:document.getElementById("elementsSection"),
+    elementsGrid:document.getElementById("elementsGrid"),
+    sellModeBtn:document.getElementById("sellModeBtn"),
+    protonBtn:document.getElementById("protonBtn"),
+    electronBtn:document.getElementById("electronBtn"),
+    neutronBtn:document.getElementById("neutronBtn"),
+    unlockToast:document.getElementById("unlockToast"),
+    researchTabBtn:document.getElementById("researchTabBtn"),
+    researchOverlay:document.getElementById("researchOverlay"),
+    closeResearch:document.getElementById("closeResearch"),
+    researchNodeList:document.getElementById("researchNodeList"),
+    tutorialBanner:document.getElementById("tutorialBanner"),
+    tutorialBannerText:document.getElementById("tutorialBannerText"),
+    tutorialBannerSkipBtn:document.getElementById("tutorialBannerSkipBtn"),
+    rewardAdOffer:document.getElementById("rewardAdOffer"),
+    rewardAdOfferText:document.getElementById("rewardAdOfferText"),
+    rewardAdWatchBtn:document.getElementById("rewardAdWatchBtn"),
+    rewardAdCloseBtn:document.getElementById("rewardAdCloseBtn"),
+    rewardAdPlayingOverlay:document.getElementById("rewardAdPlayingOverlay"),
+    rewardAdCountdownFill:document.getElementById("rewardAdCountdownFill"),
+    warehouseTabBtn:document.getElementById("warehouseTabBtn"),
+    warehouseOverlay:document.getElementById("warehouseOverlay"),
+    closeWarehouse:document.getElementById("closeWarehouse"),
+    warehouseHelpOverlay:document.getElementById("warehouseHelpOverlay"),
+    closeWarehouseHelp:document.getElementById("closeWarehouseHelp"),
+    powerTabBtn:document.getElementById("powerTabBtn"),
+    powerOverlay:document.getElementById("powerOverlay"),
+    closePower:document.getElementById("closePower"),
+    powerGenValue:document.getElementById("powerGenValue"),
+    powerDemandValue:document.getElementById("powerDemandValue"),
+    windupBtn:document.getElementById("windupBtn"),
+    windupTimeValue:document.getElementById("windupTimeValue"),
+    windupDurationBuffBtn:document.getElementById("windupDurationBuffBtn"),
+    windupOutputBuffBtn:document.getElementById("windupOutputBuffBtn"),
+    generatorList:document.getElementById("generatorList"),
+    contentTabElements:document.getElementById("contentTabElements"),
+    contentTabMolecules:document.getElementById("contentTabMolecules"),
+    contentTabSubstances:document.getElementById("contentTabSubstances"),
+    contentPaneElements:document.getElementById("contentPaneElements"),
+    contentPaneMolecules:document.getElementById("contentPaneMolecules"),
+    contentPaneSubstances:document.getElementById("contentPaneSubstances"),
+    moleculesGrid:document.getElementById("moleculesGrid"),
+    moleculeCapList:document.getElementById("moleculeCapList"),
+    substancesGrid:document.getElementById("substancesGrid"),
+    substanceCapList:document.getElementById("substanceCapList"),
+    solarTabBtn:document.getElementById("solarTabBtn"),
+    solarOverlay:document.getElementById("solarOverlay"),
+    closeSolar:document.getElementById("closeSolar"),
+    bodyNameValue:document.getElementById("bodyNameValue"),
+    bodyRequirementList:document.getElementById("bodyRequirementList"),
+    transportSpeedValue:document.getElementById("transportSpeedValue"),
+    transportSpeedBtn:document.getElementById("transportSpeedBtn"),
+    transportSlotsValue:document.getElementById("transportSlotsValue"),
+    transportSlotsBtn:document.getElementById("transportSlotsBtn"),
+    transportQueueList:document.getElementById("transportQueueList"),
+    settingsBtn:document.getElementById("settingsBtn"),
+    settingsTitle:document.getElementById("settingsTitle"),
+    settingsOverlay:document.getElementById("settingsOverlay"),
+    closeSettings:document.getElementById("closeSettings"),
+    langJa:document.getElementById("langJa"),
+    langEn:document.getElementById("langEn"),
+    resetBtn:document.getElementById("resetBtn"),
+    exportSaveBtn:document.getElementById("exportSaveBtn"),
+    importSaveBtn:document.getElementById("importSaveBtn"),
+    importFileInput:document.getElementById("importFileInput"),
+    protonCapValue:document.getElementById("protonCapValue"),
+    electronCapValue:document.getElementById("electronCapValue"),
+    neutronCapValue:document.getElementById("neutronCapValue"),
+    protonCapBtn:document.getElementById("protonCapBtn"),
+    electronCapBtn:document.getElementById("electronCapBtn"),
+    neutronCapBtn:document.getElementById("neutronCapBtn"),
+    autoOwnedProton:document.getElementById("autoOwnedProton"),
+    autoOwnedElectron:document.getElementById("autoOwnedElectron"),
+    autoOwnedNeutron:document.getElementById("autoOwnedNeutron"),
+    autoBtnProton:document.getElementById("autoBtnProton"),
+    autoBtnElectron:document.getElementById("autoBtnElectron"),
+    autoBtnNeutron:document.getElementById("autoBtnNeutron"),
+    tapPowerLevelProton:document.getElementById("tapPowerLevelProton"),
+    tapPowerLevelElectron:document.getElementById("tapPowerLevelElectron"),
+    tapPowerLevelNeutron:document.getElementById("tapPowerLevelNeutron"),
+    tapPowerBtnProton:document.getElementById("tapPowerBtnProton"),
+    tapPowerBtnElectron:document.getElementById("tapPowerBtnElectron"),
+    tapPowerBtnNeutron:document.getElementById("tapPowerBtnNeutron"),
+    elementCapList:document.getElementById("elementCapList")
+  };
+
+  // ============ 言語適用 ============
+  function applyLanguage(){
+    const dict = STRINGS[state.lang];
+    document.querySelectorAll("[data-i18n]").forEach(node=>{
+      const key = node.getAttribute("data-i18n");
+      if(dict[key]) node.textContent = dict[key];
+    });
+    el.langJa.classList.toggle("active", state.lang === "ja");
+    el.langEn.classList.toggle("active", state.lang === "en");
+    document.documentElement.lang = state.lang;
+    el.sellModeBtn.textContent = sellMode ? dict.sell_mode_btn_active : dict.sell_mode_btn;
+    updateElementNames();
+    updateMoleculeNames();
+    updateSubstanceNames();
+  }
+
+  function elementName(elementData){
+    return state.lang === "ja" ? elementData.ja : elementData.en;
+  }
+
+  function moleculeName(moleculeData){
+    return state.lang === "ja" ? moleculeData.ja : moleculeData.en;
+  }
+
+  function substanceName(substanceData){
+    return state.lang === "ja" ? substanceData.ja : substanceData.en;
+  }
+
+  function updateElementNames(){
+    el.elementsGrid.querySelectorAll(".element-card").forEach(function(card){
+      const i = Number(card.getAttribute("data-index"));
+      const nameNode = card.querySelector(".element-name");
+      if(nameNode) nameNode.textContent = elementName(ELEMENT_TABLE[i]);
+    });
+  }
+
+  function updateMoleculeNames(){
+    el.moleculesGrid.querySelectorAll(".molecule-card").forEach(function(card){
+      const j = Number(card.getAttribute("data-index"));
+      const nameNode = card.querySelector(".element-name");
+      if(nameNode) nameNode.textContent = moleculeName(MOLECULE_TABLE[j]);
+    });
+  }
+
+  function updateSubstanceNames(){
+    el.substancesGrid.querySelectorAll(".substance-card").forEach(function(card){
+      const k = Number(card.getAttribute("data-index"));
+      const nameNode = card.querySelector(".element-symbol");
+      if(nameNode) nameNode.textContent = substanceName(SUBSTANCE_TABLE[k]);
+    });
+  }
+
+  // ============ 表示更新 ============
+  function render(){
+    el.protonCount.textContent = Math.floor(state.protons);
+    el.electronCount.textContent = Math.floor(state.electrons);
+    el.neutronCount.textContent = Math.floor(state.neutrons);
+    el.energyBadge.textContent = "⚡" + Math.floor(state.energy);
+    el.settingsTitle.textContent = STRINGS[state.lang].settings_title + (debugMode ? " [DEBUG]" : "");
+
+    if(state.electronUnlocked){
+      el.electronBtn.classList.remove("locked");
+    } else {
+      el.electronBtn.classList.add("locked");
+    }
+
+    if(state.neutronUnlocked){
+      el.neutronBtn.classList.remove("locked");
+    } else {
+      el.neutronBtn.classList.add("locked");
+    }
+
+    if(state.elementSynthesisUnlocked){
+      el.elementsSection.classList.remove("locked");
+    } else {
+      el.elementsSection.classList.add("locked");
+    }
+    el.warehouseTabBtn.classList.toggle("locked", !state.warehouseUnlocked);
+    el.powerTabBtn.classList.toggle("locked", !state.powerUnlocked);
+    el.contentTabMolecules.classList.toggle("locked", !state.moleculesUnlocked);
+    el.contentTabSubstances.classList.toggle("locked", !state.substancesUnlocked);
+    el.solarTabBtn.classList.toggle("locked", !state.solarUnlocked);
+
+    renderCapRow("proton", el.protonCapValue, el.protonCapBtn);
+    renderCapRow("electron", el.electronCapValue, el.electronCapBtn);
+    renderCapRow("neutron", el.neutronCapValue, el.neutronCapBtn);
+    renderParticleAutoRow("proton", el.autoOwnedProton, el.autoBtnProton);
+    renderParticleAutoRow("electron", el.autoOwnedElectron, el.autoBtnElectron);
+    renderParticleAutoRow("neutron", el.autoOwnedNeutron, el.autoBtnNeutron);
+    renderTapPowerRow("proton", el.tapPowerLevelProton, el.tapPowerBtnProton);
+    renderTapPowerRow("electron", el.tapPowerLevelElectron, el.tapPowerBtnElectron);
+    renderTapPowerRow("neutron", el.tapPowerLevelNeutron, el.tapPowerBtnNeutron);
+
+    el.powerGenValue.textContent = state.powerGen + "MW";
+    el.powerDemandValue.textContent = state.powerDemand + "MW";
+    el.windupTimeValue.textContent = formatSeconds(state.windupTimeRemaining);
+    renderGenerators();
+    renderGeneratorBuffs();
+    renderSolarSystem();
+    renderResearch();
+    el.researchTabBtn.classList.toggle("pulse-attention", hasDeliverableResearch());
+    renderTutorialBanner();
+
+    syncElementsGrid();
+    syncElementCapList();
+    syncMoleculesGrid();
+    syncMoleculeCapList();
+    syncSubstancesGrid();
+    syncSubstanceCapList();
+  }
+
+  function renderCapRow(key, valueEl, btnEl){
+    const cap = state[key + "Cap"];
+    const cost = capExpandCost(key);
+    valueEl.textContent = cap;
+    btnEl.textContent = "+" + CAP_STEP + " (⚡" + cost + ")";
+  }
+
+  function renderParticleAutoRow(key, ownedEl, btnEl){
+    const dict = STRINGS[state.lang];
+    ownedEl.textContent = state.autoAssigned.particle[key];
+    btnEl.innerHTML = dict.auto_producer_assign_btn + " (" + autoProducerCostHtml() + ")";
+  }
+
+  function renderTapPowerRow(key, levelEl, btnEl){
+    const bonus = state.tapPowerLevel[key] * TAP_POWER_STEP;
+    levelEl.textContent = "+" + bonus.toFixed(1);
+    btnEl.innerHTML = "+" + TAP_POWER_STEP.toFixed(1) + " (⚡" + tapPowerCost() + ")";
+  }
+
+  // ============ 元素合成グリッド ============
+  function elementHue(i){
+    // 原子番号ベースで色相を分散させ、各元素の色が重複しにくくする（黄金角）
+    return Math.round((i * 137.508) % 360);
+  }
+
+  function elementTextColor(i){
+    return "hsl(" + elementHue(i) + ", 75%, 65%)";
+  }
+
+  // HSL(0-360, 0-100, 0-100) を "r,g,b" 形式のRGB文字列に変換する（--tint-rgbのCSS変数に使うため）
+  function hslToRgbString(h, s, l){
+    s /= 100; l /= 100;
+    const k = function(n){ return (n + h / 30) % 12; };
+    const a = s * Math.min(l, 1 - l);
+    const f = function(n){ return l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); };
+    const r = Math.round(255 * f(0));
+    const g = Math.round(255 * f(8));
+    const b = Math.round(255 * f(4));
+    return r + "," + g + "," + b;
+  }
+
+  function elementFrameRgb(i){
+    return hslToRgbString(elementHue(i), 75, 65);
+  }
+
+  // 分子・物質も元素と同じ黄金角の考え方で色を分散させるが、
+  // 元素と同じインデックスでも同じ色にならないようオフセットをずらす
+  function moleculeHue(j){
+    return Math.round(((j + 40) * 137.508) % 360);
+  }
+  function moleculeTextColor(j){
+    return "hsl(" + moleculeHue(j) + ", 75%, 65%)";
+  }
+  function moleculeFrameRgb(j){
+    return hslToRgbString(moleculeHue(j), 75, 65);
+  }
+
+  function substanceHue(k){
+    return Math.round(((k + 80) * 137.508) % 360);
+  }
+  function substanceTextColor(k){
+    return "hsl(" + substanceHue(k) + ", 75%, 65%)";
+  }
+  function substanceFrameRgb(k){
+    return hslToRgbString(substanceHue(k), 75, 65);
+  }
+
+  function buildCostHtml(i){
+    const recipe = ELEMENT_RECIPES[i];
+    if(recipe === null){
+      // 水素: 陽子・電子のみ（中性子0なので表示しない）
+      const data = ELEMENT_TABLE[i];
+      return '<div class="element-cost">' +
+        '<span class="c-p display-font">' + data.protons + '</span>' +
+        '<span class="c-e display-font">' + data.electrons + '</span>' +
+        '</div>';
+    }
+    const parts = [];
+    recipe.elements.forEach(function(input){
+      const symbol = ELEMENT_TABLE[input.index].symbol;
+      const label = symbol + (input.count > 1 ? "×" + input.count : "");
+      parts.push('<span class="recipe-part" style="color:' + elementTextColor(input.index) + '">' + label + '</span>');
+    });
+    if(recipe.neutrons > 0){
+      const label = "n" + (recipe.neutrons > 1 ? "×" + recipe.neutrons : "");
+      parts.push('<span class="recipe-part c-n">' + label + '</span>');
+    }
+    return '<div class="element-cost recipe-cost">' + parts.join('<span class="recipe-plus">+</span>') + '</div>';
+  }
+
+  function createElementCard(i){
+    const data = ELEMENT_TABLE[i];
+    const textColor = elementTextColor(i);
+    const card = document.createElement("button");
+    card.className = "glass-frame element-card";
+    card.id = "elementCard" + i;
+    card.setAttribute("data-index", i);
+    card.style.setProperty("--tint-rgb", elementFrameRgb(i));
+    card.innerHTML =
+      '<div class="g-edge g-edge-top"></div>' +
+      '<div class="g-edge g-edge-bottom"></div>' +
+      '<div class="g-edge g-edge-left"></div>' +
+      '<div class="g-edge g-edge-right"></div>' +
+      '<div class="g-inner">' +
+        '<div class="element-symbol display-font" style="color:' + textColor + '">' + data.symbol + '</div>' +
+        '<div class="element-name">' + elementName(data) + '</div>' +
+        '<div class="element-count display-font" id="elementCount' + i + '" style="color:' + textColor + '">0</div>' +
+        buildCostHtml(i) +
+      '</div>';
+    card.addEventListener("click", function(){
+      if(sellMode){ sellElement(i); } else { craftElement(i); }
+    });
+    return card;
+  }
+
+  function syncElementsGrid(){
+    const currentCards = el.elementsGrid.children.length;
+    for(let i = currentCards; i < state.elementsUnlockedCount; i++){
+      el.elementsGrid.appendChild(createElementCard(i));
+    }
+    for(let i = 0; i < state.elementsUnlockedCount; i++){
+      const countNode = document.getElementById("elementCount" + i);
+      if(countNode) countNode.textContent = state.elementCounts[i];
+    }
+  }
+
+  // 元素1個の生成を試みる（成功/失敗のみ返す純粋ロジック。手動クラフトと自動生産機の両方から使う）
+  function tryCraftOne(i){
+    if(!debugMode && state.elementCounts[i] >= state.elementCaps[i]) return false;
+    const recipe = ELEMENT_RECIPES[i];
+
+    if(recipe === null){
+      // 水素: 素粒子（陽子1・電子1）から生成
+      const data = ELEMENT_TABLE[i];
+      if(!debugMode){
+        if(state.protons < data.protons) return false;
+        if(state.electrons < data.electrons) return false;
+        if(state.neutrons < data.neutrons) return false;
+        state.protons -= data.protons;
+        state.electrons -= data.electrons;
+        state.neutrons -= data.neutrons;
+      }
+    } else {
+      // 水素以外: 他の元素＋中性子から生成（現実の合成経路に基づく）
+      if(!debugMode){
+        for(const input of recipe.elements){
+          if(state.elementCounts[input.index] < input.count) return false;
+        }
+        if(state.neutrons < recipe.neutrons) return false;
+        for(const input of recipe.elements){
+          state.elementCounts[input.index] -= input.count;
+        }
+        state.neutrons -= recipe.neutrons;
+      }
+    }
+
+    state.elementCounts[i] += 1;
+
+    if(state.elementCounts[i] === 1 && i === state.elementsUnlockedCount - 1 && i + 1 < ELEMENT_TABLE.length){
+      state.elementsUnlockedCount += 1;
+      showElementUnlockToast(ELEMENT_TABLE[i + 1]);
+    }
+    return true;
+  }
+
+  function craftElement(i){
+    if(state.elementCounts[i] >= state.elementCaps[i]) return; // 上限到達時は広告を出さない
+    if(!tryCraftOne(i)){
+      offerRewardAd("element", i, document.getElementById("elementCard" + i));
+      return;
+    }
+    render();
+    save();
+    const card = document.getElementById("elementCard" + i);
+    if(card) flashBox(card, "flash");
+  }
+
+  function sellElement(i){
+    const data = ELEMENT_TABLE[i];
+    if(state.elementCounts[i] <= 0) return;
+    state.elementCounts[i] -= 1;
+    const totalParticles = data.protons + data.electrons + data.neutrons;
+    const atomicNumberBonus = 1 + i * 0.01; // 原子番号（index）が1進むごとに+1%
+    state.energy += totalParticles * SELL_ENERGY_PER_PARTICLE * atomicNumberBonus;
+    render();
+    save();
+    const card = document.getElementById("elementCard" + i);
+    if(card) flashBox(card, "flash");
+  }
+
+  function toggleSellMode(){
+    sellMode = !sellMode;
+    el.sellModeBtn.classList.toggle("active", sellMode);
+    const dict = STRINGS[state.lang];
+    el.sellModeBtn.textContent = sellMode ? dict.sell_mode_btn_active : dict.sell_mode_btn;
+  }
+
+  // ============ インベントリ上限拡張 ============
+  function capExpandCost(key){
+    const config = CAP_CONFIGS[key];
+    const level = state[key + "CapLevel"];
+    return Math.round(config.baseCost * Math.pow(config.growth, level));
+  }
+
+  function expandCap(key){
+    const cost = capExpandCost(key);
+    if(!debugMode){
+      if(state.energy < cost) return;
+      state.energy -= cost;
+    }
+    state[key + "Cap"] += CAP_STEP;
+    state[key + "CapLevel"] += 1;
+    render();
+    save();
+  }
+
+  // 元素は1種類ずつ個別に上限を持つため、拡張コストと拡張処理も元素ごとに計算する
+  function elementCapExpandCost(i){
+    const config = CAP_CONFIGS.element;
+    const level = state.elementCapLevels[i];
+    return Math.round(config.baseCost * Math.pow(config.growth, level));
+  }
+
+  function expandElementCap(i){
+    const cost = elementCapExpandCost(i);
+    if(!debugMode){
+      if(state.energy < cost) return;
+      state.energy -= cost;
+    }
+    state.elementCaps[i] += CAP_STEP;
+    state.elementCapLevels[i] += 1;
+    render();
+    save();
+  }
+
+  // ============ 自動生産機 ============
+  // 自動生産機の建設コストを支払えるか確認し、支払えるなら消費する（共通処理）
+  function payAutoProducerCost(){
+    if(debugMode) return true;
+    for(const input of AUTO_PRODUCER_BUILD_COST){
+      if(state.elementCounts[input.index] < input.count) return false;
+    }
+    for(const input of AUTO_PRODUCER_BUILD_COST){
+      state.elementCounts[input.index] -= input.count;
+    }
+    return true;
+  }
+
+  function buyAutoProducer(i){
+    if(!payAutoProducerCost()) return;
+    state.autoAssigned.element[i] += 1;
+    render();
+    save();
+  }
+
+  function buyAutoProducerParticle(key){
+    if(!payAutoProducerCost()) return;
+    state.autoAssigned.particle[key] += 1;
+    render();
+    save();
+  }
+
+  const TAP_POWER_COST = 50; // エネルギー（レベルによらず固定）
+  const TAP_POWER_STEP = 0.1; // 1レベルあたりのタップ生産量増加
+
+  function tapPowerCost(){
+    return TAP_POWER_COST;
+  }
+
+  function buyTapPower(key){
+    const cost = tapPowerCost();
+    if(!debugMode){
+      if(state.energy < cost) return;
+      state.energy -= cost;
+    }
+    state.tapPowerLevel[key] += 1;
+    render();
+    save();
+  }
+
+  function buyAutoProducerMolecule(j){
+    if(!payAutoProducerCost()) return;
+    state.autoAssigned.molecule[j] += 1;
+    render();
+    save();
+  }
+
+  function buyAutoProducerSubstance(k){
+    if(!payAutoProducerCost()) return;
+    state.autoAssigned.substance[k] += 1;
+    render();
+    save();
+  }
+
+  // ============ 発電 ============
+  function formatSeconds(totalSeconds){
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return m + ":" + (s < 10 ? "0" : "") + s;
+  }
+
+  function isBuffActive(expiresAt){
+    return expiresAt > Date.now();
+  }
+
+  function tapWindup(){
+    const durationActive = isBuffActive(state.windupDurationBuffExpiresAt);
+    const mult = durationActive ? GENERATOR_BUFF_MULTIPLIER : 1;
+    const maxSeconds = WINDUP_MAX_SECONDS * mult;
+    state.windupTimeRemaining = Math.min(maxSeconds, state.windupTimeRemaining + WINDUP_TAP_SECONDS * mult);
+    render();
+    save();
+    flashBox(el.windupBtn, "flash");
+  }
+
+  function buildGenerator(type){
+    const config = GENERATOR_CONFIGS[type];
+    if(!debugMode){
+      for(const input of config.buildCost){
+        if(state.elementCounts[input.index] < input.count) return;
+      }
+      for(const input of config.buildCost){
+        state.elementCounts[input.index] -= input.count;
+      }
+    }
+    state.generatorOwned[type] += 1;
+    render();
+    save();
+  }
+
+  function generatorCostHtml(inputs){
+    return inputs.map(function(input){
+      const label = input.symbol + (input.count > 1 ? "×" + input.count : "");
+      return '<span class="recipe-part" style="color:' + ingredientColor(input) + '">' + label + '</span>';
+    }).join('<span class="recipe-plus">+</span>');
+  }
+
+  function renderGenerators(){
+    const dict = STRINGS[state.lang];
+    let html = "";
+    GENERATOR_TYPES.forEach(function(type){
+      if(!state.generatorTypeUnlocked[type]) return; // 研究で解放されるまで表示しない
+      const config = GENERATOR_CONFIGS[type];
+      const owned = state.generatorOwned[type];
+      const intervalLabel = config.fuelIntervalTicks > 1 ? " /" + config.fuelIntervalTicks + "s" : " /s";
+      const fuelText = config.fuel.length === 0
+        ? dict.generator_no_fuel_label
+        : dict.generator_fuel_label + ": " + generatorCostHtml(config.fuel) + (config.fuelAlt ? '<span class="recipe-plus">/</span>' + generatorCostHtml(config.fuelAlt) : "") + intervalLabel;
+      html +=
+        '<div class="generator-card">' +
+          '<div class="generator-card-header">' +
+            '<span class="generator-name">' + dict[config.nameKey] + '</span>' +
+            '<span class="generator-owned">' + dict.generator_owned_label + ': <span class="display-font">' + owned + '</span></span>' +
+          '</div>' +
+          '<div class="generator-info">' +
+            dict.generator_output_label + ': <span class="display-font">' + config.output + 'MW</span>' +
+            '<br>' + fuelText +
+          '</div>' +
+          '<div class="generator-cost">' + generatorCostHtml(config.buildCost) + '</div>' +
+          '<button class="generator-build-btn display-font" data-gen-type="' + type + '">' + dict.generator_build_btn + '</button>' +
+        '</div>';
+    });
+    el.generatorList.innerHTML = html;
+    el.generatorList.querySelectorAll(".generator-build-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){ buildGenerator(btn.getAttribute("data-gen-type")); });
+    });
+  }
+
+  function renderGeneratorBuffButton(btnEl, expiresAt){
+    const dict = STRINGS[state.lang];
+    if(isBuffActive(expiresAt)){
+      btnEl.textContent = dict.generator_buff_active_prefix + formatHMS(expiresAt - Date.now());
+      btnEl.disabled = true;
+    } else {
+      btnEl.textContent = dict.generator_buff_watch_btn;
+      btnEl.disabled = false;
+    }
+  }
+
+  function renderGeneratorBuffs(){
+    renderGeneratorBuffButton(el.windupDurationBuffBtn, state.windupDurationBuffExpiresAt);
+    renderGeneratorBuffButton(el.windupOutputBuffBtn, state.windupOutputBuffExpiresAt);
+  }
+
+  // 1秒ごとに発電・自動生産を処理するゲームループ
+  function stockFor(input){
+    if(input.kind === "molecule") return state.moleculeCounts;
+    if(input.kind === "substance") return state.substanceCounts;
+    return state.elementCounts;
+  }
+
+  function tickFuelGenerator(type){
+    const config = GENERATOR_CONFIGS[type];
+    const owned = state.generatorOwned[type];
+    if(owned <= 0) return 0;
+
+    // 台数が変化していたら1台ずつのタイマー配列を同期する（新規購入した台は0＝即補充対象で追加）
+    const timers = state.generatorUnitTimers[type];
+    while(timers.length < owned) timers.push(0);
+    while(timers.length > owned) timers.pop();
+
+    let supply = 0;
+    for(let k = 0; k < owned; k++){
+      if(timers[k] <= 0){
+        // この1台分の燃料補充を試みる
+        let refueled = false;
+        if(debugMode){
+          refueled = true;
+        } else if(config.fuel.every(function(input){ return stockFor(input)[input.index] >= input.count; })){
+          config.fuel.forEach(function(input){ stockFor(input)[input.index] -= input.count; });
+          refueled = true;
+        } else if(config.fuelAlt && config.fuelAlt.every(function(input){ return stockFor(input)[input.index] >= input.count; })){
+          config.fuelAlt.forEach(function(input){ stockFor(input)[input.index] -= input.count; });
+          refueled = true;
+        }
+        if(refueled) timers[k] = config.fuelIntervalTicks;
+      }
+      if(timers[k] > 0){
+        supply += config.output;
+        timers[k] -= 1;
+      }
+    }
+    return supply;
+  }
+
+  function gameTick(){
+    let supply = 0;
+
+    if(state.rewardAdCooldownRemaining > 0){
+      state.rewardAdCooldownRemaining -= 1;
+    }
+
+    // ゼンマイ発電機（残り発電時間が残っている間、毎秒20MW発電。発電量バフ中は3倍）
+    if(state.windupTimeRemaining > 0){
+      supply += WINDUP_OUTPUT * (isBuffActive(state.windupOutputBuffExpiresAt) ? GENERATOR_BUFF_MULTIPLIER : 1);
+      state.windupTimeRemaining -= 1;
+    }
+
+    // 石炭発電機・石油発電機
+    supply += tickFuelGenerator("coal");
+    supply += tickFuelGenerator("oil");
+
+    // 太陽光発電（燃料不要）
+    supply += state.generatorOwned.solar * GENERATOR_CONFIGS.solar.output;
+
+    // 核分裂発電機（ウラン優先、なければプルトニウム。燃料交換サイクルが長め）
+    supply += tickFuelGenerator("fission");
+
+    // 核融合発電機
+    supply += tickFuelGenerator("fusion");
+
+    // 自動生産機の消費電力（素粒子・元素・分子・物質すべて合算）
+    let demand = 0;
+    PARTICLE_KEYS.forEach(function(key){ demand += state.autoAssigned.particle[key] * AUTO_PRODUCER_POWER_DRAW; });
+    for(let i = 0; i < state.autoAssigned.element.length; i++){ demand += state.autoAssigned.element[i] * AUTO_PRODUCER_POWER_DRAW; }
+    for(let j = 0; j < state.autoAssigned.molecule.length; j++){ demand += state.autoAssigned.molecule[j] * AUTO_PRODUCER_POWER_DRAW; }
+    for(let k = 0; k < state.autoAssigned.substance.length; k++){ demand += state.autoAssigned.substance[k] * AUTO_PRODUCER_POWER_DRAW; }
+
+    const efficiency = demand > 0 ? Math.min(1, supply / demand) : 1;
+    state.powerGen = Math.round(supply * 10) / 10;
+    state.powerDemand = demand;
+
+    // 自動生産機による生成（効率に応じて生産速度が落ちる）
+    PARTICLE_KEYS.forEach(function(key){
+      if(state.autoAssigned.particle[key] <= 0) return;
+      state.autoProgress.particle[key] += state.autoAssigned.particle[key] * AUTO_PRODUCER_RATE * efficiency;
+      while(state.autoProgress.particle[key] >= 1){
+        const success = tryProduceParticle(key);
+        state.autoProgress.particle[key] -= 1;
+        if(!success) break;
+      }
+    });
+    for(let i = 0; i < state.autoAssigned.element.length; i++){
+      if(state.autoAssigned.element[i] <= 0) continue;
+      state.autoProgress.element[i] += state.autoAssigned.element[i] * AUTO_PRODUCER_RATE * efficiency;
+      while(state.autoProgress.element[i] >= 1){
+        const success = tryCraftOne(i);
+        state.autoProgress.element[i] -= 1;
+        if(!success) break; // 材料切れ・上限到達なら以降のティックまで持ち越さない
+      }
+    }
+    for(let j = 0; j < state.autoAssigned.molecule.length; j++){
+      if(state.autoAssigned.molecule[j] <= 0) continue;
+      state.autoProgress.molecule[j] += state.autoAssigned.molecule[j] * AUTO_PRODUCER_RATE * efficiency;
+      while(state.autoProgress.molecule[j] >= 1){
+        const success = tryCraftMolecule(j);
+        state.autoProgress.molecule[j] -= 1;
+        if(!success) break;
+      }
+    }
+    for(let k = 0; k < state.autoAssigned.substance.length; k++){
+      if(state.autoAssigned.substance[k] <= 0) continue;
+      state.autoProgress.substance[k] += state.autoAssigned.substance[k] * AUTO_PRODUCER_RATE * efficiency;
+      while(state.autoProgress.substance[k] >= 1){
+        const success = tryCraftSubstance(k);
+        state.autoProgress.substance[k] -= 1;
+        if(!success) break;
+      }
+    }
+
+    tickTransportQueue();
+
+    render();
+    save();
+  }
+
+  function autoProducerCostHtml(){
+    return AUTO_PRODUCER_BUILD_COST.map(function(input){
+      const label = input.symbol + (input.count > 1 ? "×" + input.count : "");
+      return '<span class="recipe-part" style="color:' + elementTextColor(input.index) + '">' + label + '</span>';
+    }).join('<span class="recipe-plus">+</span>');
+  }
+
+  function createElementCapRow(i){
+    const data = ELEMENT_TABLE[i];
+    const dict = STRINGS[state.lang];
+    const row = document.createElement("div");
+    row.className = "cap-row has-auto";
+    row.id = "elementCapRow" + i;
+    row.innerHTML =
+      '<span class="cap-name">' + data.symbol + '</span>' +
+      '<span class="cap-value display-font" id="elementCapValue' + i + '">' + state.elementCaps[i] + '</span>' +
+      '<button class="cap-expand-btn display-font" id="elementCapBtn' + i + '"></button>' +
+      '<div class="auto-producer-row">' +
+        '<span>' + dict.auto_producer_label + ' <span class="auto-producer-owned display-font" id="autoOwned' + i + '">' + state.autoAssigned.element[i] + '</span></span>' +
+        '<button class="auto-producer-btn display-font" id="autoBtn' + i + '">' + dict.auto_producer_assign_btn + ' (' + autoProducerCostHtml() + ')</button>' +
+      '</div>';
+    row.querySelector("#elementCapBtn" + i).addEventListener("click", function(){ expandElementCap(i); });
+    row.querySelector("#autoBtn" + i).addEventListener("click", function(){ buyAutoProducer(i); });
+    return row;
+  }
+
+  function syncElementCapList(){
+    const currentRows = el.elementCapList.children.length;
+    for(let i = currentRows; i < state.elementsUnlockedCount; i++){
+      el.elementCapList.appendChild(createElementCapRow(i));
+    }
+    for(let i = 0; i < state.elementsUnlockedCount; i++){
+      const valueNode = document.getElementById("elementCapValue" + i);
+      const btnNode = document.getElementById("elementCapBtn" + i);
+      const ownedNode = document.getElementById("autoOwned" + i);
+      if(valueNode) valueNode.textContent = state.elementCaps[i];
+      if(btnNode) btnNode.textContent = "+" + CAP_STEP + " (⚡" + elementCapExpandCost(i) + ")";
+      if(ownedNode) ownedNode.textContent = state.autoAssigned.element[i];
+    }
+  }
+
+  // ============ 分子 ============
+  function buildMoleculeCostHtml(j){
+    const recipe = MOLECULE_TABLE[j].recipe;
+    const parts = recipe.map(function(input){
+      const label = input.symbol + (input.count > 1 ? "×" + input.count : "");
+      return '<span class="recipe-part" style="color:' + elementTextColor(input.index) + '">' + label + '</span>';
+    });
+    return '<div class="element-cost recipe-cost">' + parts.join('<span class="recipe-plus">+</span>') + '</div>';
+  }
+
+  function createMoleculeCard(j){
+    const data = MOLECULE_TABLE[j];
+    const textColor = moleculeTextColor(j);
+    const card = document.createElement("button");
+    card.className = "glass-frame element-card molecule-card";
+    card.id = "moleculeCard" + j;
+    card.setAttribute("data-index", j);
+    card.style.setProperty("--tint-rgb", moleculeFrameRgb(j));
+    card.innerHTML =
+      '<div class="g-edge g-edge-top"></div>' +
+      '<div class="g-edge g-edge-bottom"></div>' +
+      '<div class="g-edge g-edge-left"></div>' +
+      '<div class="g-edge g-edge-right"></div>' +
+      '<div class="g-inner">' +
+        '<div class="element-symbol display-font" style="color:' + textColor + '">' + data.formula + '</div>' +
+        '<div class="element-name">' + moleculeName(data) + '</div>' +
+        '<div class="element-count display-font" id="moleculeCount' + j + '" style="color:' + textColor + '">0</div>' +
+        buildMoleculeCostHtml(j) +
+      '</div>';
+    card.addEventListener("click", function(){ craftMolecule(j); });
+    return card;
+  }
+
+  function syncMoleculesGrid(){
+    MOLECULE_TABLE.forEach(function(m, j){
+      const existing = document.getElementById("moleculeCard" + j);
+      if(!existing && state.moleculeCategoryUnlocked[m.state]){
+        el.moleculesGrid.appendChild(createMoleculeCard(j));
+      }
+    });
+    for(let j = 0; j < MOLECULE_TABLE.length; j++){
+      const node = document.getElementById("moleculeCount" + j);
+      if(node) node.textContent = state.moleculeCounts[j];
+    }
+  }
+
+  function tryCraftMolecule(j){
+    if(!debugMode && state.moleculeCounts[j] >= state.moleculeCaps[j]) return false;
+    const recipe = MOLECULE_TABLE[j].recipe;
+    if(!debugMode){
+      for(const input of recipe){
+        if(state.elementCounts[input.index] < input.count) return false;
+      }
+      for(const input of recipe){
+        state.elementCounts[input.index] -= input.count;
+      }
+    }
+    state.moleculeCounts[j] += 1;
+    return true;
+  }
+
+  function craftMolecule(j){
+    if(state.moleculeCounts[j] >= state.moleculeCaps[j]) return; // 上限到達時は広告を出さない
+    if(!tryCraftMolecule(j)){
+      offerRewardAd("molecule", j, document.getElementById("moleculeCard" + j));
+      return;
+    }
+    render();
+    save();
+    const card = document.getElementById("moleculeCard" + j);
+    if(card) flashBox(card, "flash");
+  }
+
+  function moleculeCapExpandCost(j){
+    const config = CAP_CONFIGS.molecule;
+    const level = state.moleculeCapLevels[j];
+    return Math.round(config.baseCost * Math.pow(config.growth, level));
+  }
+
+  function expandMoleculeCap(j){
+    const cost = moleculeCapExpandCost(j);
+    if(!debugMode){
+      if(state.energy < cost) return;
+      state.energy -= cost;
+    }
+    state.moleculeCaps[j] += CAP_STEP;
+    state.moleculeCapLevels[j] += 1;
+    render();
+    save();
+  }
+
+  function createMoleculeCapRow(j){
+    const data = MOLECULE_TABLE[j];
+    const dict = STRINGS[state.lang];
+    const row = document.createElement("div");
+    row.className = "cap-row has-auto";
+    row.id = "moleculeCapRow" + j;
+    row.innerHTML =
+      '<span class="cap-name">' + data.formula + '</span>' +
+      '<span class="cap-value display-font" id="moleculeCapValue' + j + '">' + state.moleculeCaps[j] + '</span>' +
+      '<button class="cap-expand-btn display-font" id="moleculeCapBtn' + j + '"></button>' +
+      '<div class="auto-producer-row">' +
+        '<span>' + dict.auto_producer_label + ' <span class="auto-producer-owned display-font" id="autoOwnedMolecule' + j + '">' + state.autoAssigned.molecule[j] + '</span></span>' +
+        '<button class="auto-producer-btn display-font" id="autoBtnMolecule' + j + '">' + dict.auto_producer_assign_btn + ' (' + autoProducerCostHtml() + ')</button>' +
+      '</div>';
+    row.querySelector("#moleculeCapBtn" + j).addEventListener("click", function(){ expandMoleculeCap(j); });
+    row.querySelector("#autoBtnMolecule" + j).addEventListener("click", function(){ buyAutoProducerMolecule(j); });
+    return row;
+  }
+
+  function syncMoleculeCapList(){
+    if(el.moleculeCapList.children.length === 0){
+      MOLECULE_TABLE.forEach(function(_, j){
+        el.moleculeCapList.appendChild(createMoleculeCapRow(j));
+      });
+    }
+    for(let j = 0; j < MOLECULE_TABLE.length; j++){
+      const valueNode = document.getElementById("moleculeCapValue" + j);
+      const btnNode = document.getElementById("moleculeCapBtn" + j);
+      const ownedNode = document.getElementById("autoOwnedMolecule" + j);
+      if(valueNode) valueNode.textContent = state.moleculeCaps[j];
+      if(btnNode) btnNode.textContent = "+" + CAP_STEP + " (⚡" + moleculeCapExpandCost(j) + ")";
+      if(ownedNode) ownedNode.textContent = state.autoAssigned.molecule[j];
+    }
+  }
+
+  // ============ 物質 ============
+  function ingredientColor(input){
+    if(input.kind === "element") return elementTextColor(input.index);
+    if(input.kind === "particle"){
+      if(input.stateKey === "protons") return "var(--neon-red)";
+      if(input.stateKey === "electrons") return "var(--neon-blue)";
+      return "var(--neon-white)";
+    }
+    return "var(--neon-white)";
+  }
+
+  function buildSubstanceCostHtml(k){
+    const recipe = SUBSTANCE_TABLE[k].recipe;
+    const parts = recipe.map(function(input){
+      const label = input.symbol + (input.count > 1 ? "×" + input.count : "");
+      return '<span class="recipe-part" style="color:' + ingredientColor(input) + '">' + label + '</span>';
+    });
+    return '<div class="element-cost recipe-cost">' + parts.join('<span class="recipe-plus">+</span>') + '</div>';
+  }
+
+  function createSubstanceCard(k){
+    const data = SUBSTANCE_TABLE[k];
+    const textColor = substanceTextColor(k);
+    const card = document.createElement("button");
+    card.className = "glass-frame element-card substance-card";
+    card.id = "substanceCard" + k;
+    card.setAttribute("data-index", k);
+    card.style.setProperty("--tint-rgb", substanceFrameRgb(k));
+    card.innerHTML =
+      '<div class="g-edge g-edge-top"></div>' +
+      '<div class="g-edge g-edge-bottom"></div>' +
+      '<div class="g-edge g-edge-left"></div>' +
+      '<div class="g-edge g-edge-right"></div>' +
+      '<div class="g-inner">' +
+        '<div class="element-symbol display-font" style="color:' + textColor + '">' + substanceName(data) + '</div>' +
+        '<div class="element-count display-font" id="substanceCount' + k + '" style="color:' + textColor + '">0</div>' +
+        buildSubstanceCostHtml(k) +
+      '</div>';
+    card.addEventListener("click", function(){ craftSubstance(k); });
+    return card;
+  }
+
+  function syncSubstancesGrid(){
+    SUBSTANCE_TABLE.forEach(function(_, k){
+      const existing = document.getElementById("substanceCard" + k);
+      if(!existing && state.substanceItemUnlocked[k]){
+        el.substancesGrid.appendChild(createSubstanceCard(k));
+      }
+    });
+    for(let k = 0; k < SUBSTANCE_TABLE.length; k++){
+      const node = document.getElementById("substanceCount" + k);
+      if(node) node.textContent = state.substanceCounts[k];
+    }
+  }
+
+  function tryCraftSubstance(k){
+    if(!debugMode && state.substanceCounts[k] >= state.substanceCaps[k]) return false;
+    const recipe = SUBSTANCE_TABLE[k].recipe;
+    if(!debugMode){
+      for(const input of recipe){
+        const stock = input.kind === "element" ? state.elementCounts : state.moleculeCounts;
+        if(stock[input.index] < input.count) return false;
+      }
+      for(const input of recipe){
+        const stock = input.kind === "element" ? state.elementCounts : state.moleculeCounts;
+        stock[input.index] -= input.count;
+      }
+    }
+    state.substanceCounts[k] += 1;
+    return true;
+  }
+
+  function craftSubstance(k){
+    if(state.substanceCounts[k] >= state.substanceCaps[k]) return; // 上限到達時は広告を出さない
+    if(!tryCraftSubstance(k)){
+      offerRewardAd("substance", k, document.getElementById("substanceCard" + k));
+      return;
+    }
+    render();
+    save();
+    const card = document.getElementById("substanceCard" + k);
+    if(card) flashBox(card, "flash");
+  }
+
+  function substanceCapExpandCost(k){
+    const config = CAP_CONFIGS.substance;
+    const level = state.substanceCapLevels[k];
+    return Math.round(config.baseCost * Math.pow(config.growth, level));
+  }
+
+  function expandSubstanceCap(k){
+    const cost = substanceCapExpandCost(k);
+    if(!debugMode){
+      if(state.energy < cost) return;
+      state.energy -= cost;
+    }
+    state.substanceCaps[k] += CAP_STEP;
+    state.substanceCapLevels[k] += 1;
+    render();
+    save();
+  }
+
+  function createSubstanceCapRow(k){
+    const data = SUBSTANCE_TABLE[k];
+    const dict = STRINGS[state.lang];
+    const row = document.createElement("div");
+    row.className = "cap-row has-auto";
+    row.id = "substanceCapRow" + k;
+    row.innerHTML =
+      '<span class="cap-name">' + substanceName(data) + '</span>' +
+      '<span class="cap-value display-font" id="substanceCapValue' + k + '">' + state.substanceCaps[k] + '</span>' +
+      '<button class="cap-expand-btn display-font" id="substanceCapBtn' + k + '"></button>' +
+      '<div class="auto-producer-row">' +
+        '<span>' + dict.auto_producer_label + ' <span class="auto-producer-owned display-font" id="autoOwnedSubstance' + k + '">' + state.autoAssigned.substance[k] + '</span></span>' +
+        '<button class="auto-producer-btn display-font" id="autoBtnSubstance' + k + '">' + dict.auto_producer_assign_btn + ' (' + autoProducerCostHtml() + ')</button>' +
+      '</div>';
+    row.querySelector("#substanceCapBtn" + k).addEventListener("click", function(){ expandSubstanceCap(k); });
+    row.querySelector("#autoBtnSubstance" + k).addEventListener("click", function(){ buyAutoProducerSubstance(k); });
+    return row;
+  }
+
+  function syncSubstanceCapList(){
+    if(el.substanceCapList.children.length === 0){
+      SUBSTANCE_TABLE.forEach(function(_, k){
+        el.substanceCapList.appendChild(createSubstanceCapRow(k));
+      });
+    }
+    for(let k = 0; k < SUBSTANCE_TABLE.length; k++){
+      const valueNode = document.getElementById("substanceCapValue" + k);
+      const btnNode = document.getElementById("substanceCapBtn" + k);
+      const ownedNode = document.getElementById("autoOwnedSubstance" + k);
+      if(valueNode) valueNode.textContent = state.substanceCaps[k];
+      if(btnNode) btnNode.textContent = "+" + CAP_STEP + " (⚡" + substanceCapExpandCost(k) + ")";
+      if(ownedNode) ownedNode.textContent = state.autoAssigned.substance[k];
+    }
+  }
+
+  // ============ 太陽系構築・送出装置 ============
+  function bodyName(body){
+    return state.lang === "ja" ? body.ja : body.en;
+  }
+
+  // 現在の輸送対象（太陽系構築中はその天体、太陽系完成後は銀河生成）の必要リストと進捗配列を返す
+  function getActiveRequirements(){
+    return state.buildMode === "galaxy" ? GALAXY_REQUIREMENTS : CELESTIAL_BODIES[state.currentBodyIndex].requirements;
+  }
+  function getActiveProgress(){
+    return state.buildMode === "galaxy" ? state.galaxyProgress : state.currentBodyProgress;
+  }
+  function getActiveLabel(){
+    const dict = STRINGS[state.lang];
+    return state.buildMode === "galaxy" ? dict.galaxy_label : bodyName(CELESTIAL_BODIES[state.currentBodyIndex]);
+  }
+
+  function requirementLabel(input){
+    if(input.kind === "particle"){
+      const dict = STRINGS[state.lang];
+      if(input.stateKey === "protons") return dict.proton_label;
+      if(input.stateKey === "electrons") return dict.electron_label;
+      return dict.neutron_label;
+    }
+    if(input.kind === "element") return ELEMENT_TABLE[input.index].symbol;
+    if(input.kind === "molecule") return MOLECULE_TABLE[input.index].formula;
+    return substanceName(SUBSTANCE_TABLE[input.index]);
+  }
+
+  function requirementStock(input){
+    if(input.kind === "particle") return state[input.stateKey];
+    if(input.kind === "element") return state.elementCounts[input.index];
+    if(input.kind === "molecule") return state.moleculeCounts[input.index];
+    return state.substanceCounts[input.index];
+  }
+
+  function requirementDeduct(input, amount){
+    if(input.kind === "particle"){ state[input.stateKey] -= amount; return; }
+    const stock = input.kind === "element" ? state.elementCounts
+      : input.kind === "molecule" ? state.moleculeCounts
+      : state.substanceCounts;
+    stock[input.index] -= amount;
+  }
+
+  function requirementRefund(input, amount){
+    if(amount <= 0) return;
+    if(input.kind === "particle"){ state[input.stateKey] += amount; return; }
+    const stock = input.kind === "element" ? state.elementCounts
+      : input.kind === "molecule" ? state.moleculeCounts
+      : state.substanceCounts;
+    stock[input.index] += amount;
+  }
+
+  function transportSpeedCost(){
+    return Math.round(TRANSPORT_SPEED_CONFIG.baseCost * Math.pow(TRANSPORT_SPEED_CONFIG.growth, state.transportSpeedLevel));
+  }
+
+  function transportSlotsCost(){
+    return Math.round(TRANSPORT_SLOTS_CONFIG.baseCost * Math.pow(TRANSPORT_SLOTS_CONFIG.growth, state.transportSlotsLevel));
+  }
+
+  function expandTransportSpeed(){
+    const cost = transportSpeedCost();
+    if(!debugMode){
+      if(state.energy < cost) return;
+      state.energy -= cost;
+    }
+    state.transportSpeed += 1;
+    state.transportSpeedLevel += 1;
+    render();
+    save();
+  }
+
+  function expandTransportSlots(){
+    const cost = transportSlotsCost();
+    if(!debugMode){
+      if(state.energy < cost) return;
+      state.energy -= cost;
+    }
+    state.transportSlots += 1;
+    state.transportSlotsLevel += 1;
+    state.transportQueue.push({ reqIndex:null, remaining:0 });
+    render();
+    save();
+  }
+
+  // 現在の輸送対象の特定の必要物資を、空いている輸送枠（または同じ物資を積んでいる枠）に投入する
+  function loadQueueSlot(reqIndex){
+    const requirements = getActiveRequirements();
+    const progress = getActiveProgress();
+    const input = requirements[reqIndex];
+    const target = input.count;
+    const already = progress[reqIndex];
+    if(already >= target) return; // すでに必要量を満たしている
+
+    // すでにこの物資を積んでいる枠を探す。無ければ空き枠を探す
+    let slot = state.transportQueue.find(function(s){ return s.reqIndex === reqIndex; });
+    if(!slot){
+      slot = state.transportQueue.find(function(s){ return s.reqIndex === null; });
+      if(!slot) return; // 空き枠なし
+      slot.reqIndex = reqIndex;
+    }
+
+    const roomInSlot = QUEUE_SLOT_CAPACITY - slot.remaining;
+    const stillNeeded = target - already - slot.remaining;
+    const available = debugMode ? Infinity : requirementStock(input);
+    const amount = Math.max(0, Math.min(roomInSlot, stillNeeded, available));
+    if(amount <= 0) return;
+
+    if(!debugMode) requirementDeduct(input, amount);
+    slot.remaining += amount;
+    render();
+    save();
+  }
+
+  // 現在の輸送対象が完成した時の処理。太陽系構築中なら次の天体へ、太陽系完成後は銀河生成モードへ移行する
+  function advanceToNextBody(){
+    const dict = STRINGS[state.lang];
+    const requirements = getActiveRequirements();
+
+    if(state.buildMode === "solar"){
+      const finishedBody = CELESTIAL_BODIES[state.currentBodyIndex];
+      showUnlockToastText(dict.body_complete_toast.replace("{name}", bodyName(finishedBody)));
+    }
+
+    // キューに残っている分は在庫へ払い戻す
+    state.transportQueue.forEach(function(slot){
+      if(slot.reqIndex !== null && slot.remaining > 0){
+        requirementRefund(requirements[slot.reqIndex], slot.remaining);
+      }
+      slot.reqIndex = null;
+      slot.remaining = 0;
+    });
+
+    if(state.buildMode === "solar"){
+      if(state.currentBodyIndex + 1 < CELESTIAL_BODIES.length){
+        state.currentBodyIndex += 1;
+        state.currentBodyProgress = new Array(CELESTIAL_BODIES[state.currentBodyIndex].requirements.length).fill(0);
+      } else {
+        // 太陽系完成 → 銀河生成モードへ移行（意図的にクリアさせないエンドコンテンツ）
+        showUnlockToastText(dict.all_bodies_complete_toast);
+        state.buildMode = "galaxy";
+        state.galaxyProgress = new Array(GALAXY_REQUIREMENTS.length).fill(0);
+      }
+    } else {
+      // 銀河生成モードで全要求を満たした場合（想定上ほぼ到達不可能な量にしてある）
+      showUnlockToastText(dict.galaxy_complete_toast);
+    }
+  }
+
+  function showUnlockToastText(text){
+    el.unlockToast.textContent = text;
+    el.unlockToast.classList.add("show");
+    setTimeout(function(){
+      el.unlockToast.classList.remove("show");
+    }, 2600);
+  }
+
+  // ============ リワード広告（モック） ============
+  let pendingRewardAdTarget = null; // { kind, index }
+  let pendingRewardAdTriggerEl = null; // 広告提案を発火させたボタン要素（連打時に閉じないようにするため）
+  let rewardAdOfferTimer = null;
+
+  function rewardTargetLabel(target){
+    if(target.kind === "element") return ELEMENT_TABLE[target.index].symbol;
+    if(target.kind === "molecule") return MOLECULE_TABLE[target.index].formula;
+    return substanceName(SUBSTANCE_TABLE[target.index]);
+  }
+
+  // クラフトが材料不足で失敗した時に呼ぶ。クールダウン中や既に表示中なら何もしない
+  function outsideRewardAdOfferClick(e){
+    if(el.rewardAdOffer.contains(e.target)) return; // ポップアップ自身の操作はここでは扱わない
+    if(pendingRewardAdTriggerEl && pendingRewardAdTriggerEl.contains(e.target)){
+      // 発火元のボタンへの連打では閉じさせず、軽く発光するだけに留める
+      pulseRewardAdOffer();
+      return;
+    }
+    closeRewardAdOffer();
+  }
+
+  function pulseRewardAdOffer(){
+    el.rewardAdOffer.classList.remove("pulse");
+    void el.rewardAdOffer.offsetWidth; // 強制リフローしてアニメーションを再生させる
+    el.rewardAdOffer.classList.add("pulse");
+    // 連打中はまだ見てもらいたいので、自動的に消えるまでの時間をリセットする
+    if(rewardAdOfferTimer) clearTimeout(rewardAdOfferTimer);
+    rewardAdOfferTimer = setTimeout(closeRewardAdOffer, 8000);
+  }
+
+  function offerRewardAd(kind, index, triggerEl){
+    if(state.rewardAdCooldownRemaining > 0) return;
+    if(pendingRewardAdTarget){
+      // 既に表示中に同じボタン等を連打された場合は、閉じずに軽く発光するだけに留める
+      pulseRewardAdOffer();
+      return;
+    }
+    pendingRewardAdTarget = { kind:kind, index:index };
+    pendingRewardAdTriggerEl = triggerEl || null;
+    const dict = STRINGS[state.lang];
+    const name = rewardTargetLabel(pendingRewardAdTarget);
+    el.rewardAdOfferText.textContent = dict.reward_ad_offer_text.replace(/{name}/g, name).replace("{amount}", REWARD_AD_AMOUNT);
+    el.rewardAdWatchBtn.textContent = dict.reward_ad_watch_btn;
+    el.rewardAdOffer.style.display = "block";
+    if(rewardAdOfferTimer) clearTimeout(rewardAdOfferTimer);
+    rewardAdOfferTimer = setTimeout(closeRewardAdOffer, 8000); // 邪魔にならないよう8秒で自動的に消える
+    // クラフト失敗を起こした今回のクリック自体で即座に閉じてしまわないよう、次のイベントループで監視を開始する
+    setTimeout(function(){
+      document.addEventListener("click", outsideRewardAdOfferClick);
+    }, 0);
+  }
+
+  function closeRewardAdOffer(){
+    el.rewardAdOffer.style.display = "none";
+    el.rewardAdOffer.classList.remove("pulse");
+    pendingRewardAdTarget = null;
+    pendingRewardAdTriggerEl = null;
+    if(rewardAdOfferTimer){ clearTimeout(rewardAdOfferTimer); rewardAdOfferTimer = null; }
+    document.removeEventListener("click", outsideRewardAdOfferClick);
+  }
+
+  function startRewardAdPlayback(){
+    if(!pendingRewardAdTarget) return;
+    const target = pendingRewardAdTarget;
+    el.rewardAdOffer.style.display = "none";
+    el.rewardAdOffer.classList.remove("pulse");
+    if(rewardAdOfferTimer){ clearTimeout(rewardAdOfferTimer); rewardAdOfferTimer = null; }
+    document.removeEventListener("click", outsideRewardAdOfferClick);
+
+    el.rewardAdPlayingOverlay.classList.add("open");
+    el.rewardAdCountdownFill.style.transition = "none";
+    el.rewardAdCountdownFill.style.width = "0%";
+    void el.rewardAdCountdownFill.offsetWidth; // 強制リフローしてアニメーションを確実に再生させる
+    el.rewardAdCountdownFill.style.transition = "width " + REWARD_AD_PLAY_SECONDS + "s linear";
+    el.rewardAdCountdownFill.style.width = "100%";
+
+    setTimeout(function(){
+      el.rewardAdPlayingOverlay.classList.remove("open");
+      grantRewardAd(target);
+      pendingRewardAdTarget = null;
+    }, REWARD_AD_PLAY_SECONDS * 1000);
+  }
+
+  function grantRewardAd(target){
+    const dict = STRINGS[state.lang];
+    const stock = target.kind === "element" ? state.elementCounts
+      : target.kind === "molecule" ? state.moleculeCounts
+      : state.substanceCounts;
+    const cap = target.kind === "element" ? state.elementCaps[target.index]
+      : target.kind === "molecule" ? state.moleculeCaps[target.index]
+      : state.substanceCaps[target.index];
+    const amount = Math.max(0, Math.min(REWARD_AD_AMOUNT, cap - stock[target.index]));
+    stock[target.index] += amount;
+    state.rewardAdCooldownRemaining = REWARD_AD_COOLDOWN_SECONDS;
+    showUnlockToastText(dict.reward_ad_granted_text.replace(/{name}/g, rewardTargetLabel(target)).replace("{amount}", amount));
+    render();
+    save();
+  }
+
+  // 空気圧発電機の「稼働時間3倍」「発電量3倍」バフ（24時間、実時間ベース）を広告視聴で付与する
+  function formatHMS(ms){
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return h + ":" + (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+  }
+
+  function startGeneratorBuffAd(buffType){
+    if(isBuffActive(buffType === "duration" ? state.windupDurationBuffExpiresAt : state.windupOutputBuffExpiresAt)) return;
+    el.rewardAdPlayingOverlay.classList.add("open");
+    el.rewardAdCountdownFill.style.transition = "none";
+    el.rewardAdCountdownFill.style.width = "0%";
+    void el.rewardAdCountdownFill.offsetWidth; // 強制リフローしてアニメーションを確実に再生させる
+    el.rewardAdCountdownFill.style.transition = "width " + REWARD_AD_PLAY_SECONDS + "s linear";
+    el.rewardAdCountdownFill.style.width = "100%";
+    setTimeout(function(){
+      el.rewardAdPlayingOverlay.classList.remove("open");
+      applyGeneratorBuff(buffType);
+    }, REWARD_AD_PLAY_SECONDS * 1000);
+  }
+
+  function applyGeneratorBuff(buffType){
+    const dict = STRINGS[state.lang];
+    const expiresAt = Date.now() + GENERATOR_BUFF_DURATION_MS;
+    if(buffType === "duration"){
+      state.windupDurationBuffExpiresAt = expiresAt;
+      showUnlockToastText(dict.reward_ad_duration_granted);
+    } else {
+      state.windupOutputBuffExpiresAt = expiresAt;
+      showUnlockToastText(dict.reward_ad_output_granted);
+    }
+    render();
+    save();
+  }
+
+  // 輸送キューを1ティック分（1秒相当）進める。目標が完成していたら次へ進める
+  function tickTransportQueue(){
+    const requirements = getActiveRequirements();
+    const progress = getActiveProgress();
+
+    state.transportQueue.forEach(function(slot){
+      if(slot.reqIndex === null || slot.remaining <= 0) return;
+      const reqIndex = slot.reqIndex;
+      const input = requirements[reqIndex];
+      const target = input.count;
+      const stillNeeded = Math.max(0, target - progress[reqIndex]);
+      const sent = Math.min(state.transportSpeed, slot.remaining, stillNeeded);
+      progress[reqIndex] += sent;
+      slot.remaining -= sent;
+
+      if(progress[reqIndex] >= target){
+        // 必要量に達したら、枠に残っている分は在庫へ払い戻す
+        requirementRefund(input, slot.remaining);
+        slot.remaining = 0;
+      }
+      if(slot.remaining <= 0){
+        slot.reqIndex = null;
+      }
+    });
+
+    const complete = requirements.every(function(input, idx){ return progress[idx] >= input.count; });
+    if(complete) advanceToNextBody();
+  }
+
+  function renderSolarSystem(){
+    const dict = STRINGS[state.lang];
+    const requirements = getActiveRequirements();
+    const progressArr = getActiveProgress();
+
+    el.bodyNameValue.textContent = getActiveLabel();
+
+    let html = "";
+    requirements.forEach(function(input, idx){
+      const progress = progressArr[idx];
+      const target = input.count;
+      const pct = Math.min(100, Math.round((progress / target) * 100));
+      const done = progress >= target;
+      html +=
+        '<div class="requirement-row">' +
+          '<div class="requirement-header">' +
+            '<span style="color:' + ingredientColor(input) + '">' + requirementLabel(input) + '</span>' +
+            '<span class="requirement-amount display-font">' + progress + ' / ' + target + '</span>' +
+          '</div>' +
+          '<div class="requirement-bar-track"><div class="requirement-bar-fill" style="width:' + pct + '%"></div></div>' +
+          '<button class="requirement-load-btn" data-req="' + idx + '" ' + (done ? "disabled" : "") + '>' +
+            (done ? dict.requirement_complete_label : dict.requirement_load_btn) +
+          '</button>' +
+        '</div>';
+    });
+    el.bodyRequirementList.innerHTML = html;
+    el.bodyRequirementList.querySelectorAll(".requirement-load-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){ loadQueueSlot(Number(btn.getAttribute("data-req"))); });
+    });
+
+    el.transportSpeedValue.textContent = state.transportSpeed + "/s";
+    el.transportSpeedBtn.innerHTML = "+1 (⚡" + transportSpeedCost() + ")";
+    el.transportSlotsValue.textContent = state.transportSlots;
+    el.transportSlotsBtn.innerHTML = "+1 (⚡" + transportSlotsCost() + ")";
+
+    let queueHtml = "";
+    state.transportQueue.forEach(function(slot){
+      if(slot.reqIndex === null){
+        queueHtml += '<div class="queue-slot-row">' + dict.queue_slot_empty + '</div>';
+      } else {
+        const input = requirements[slot.reqIndex];
+        const label = dict.queue_slot_shipping
+          .replace("{name}", requirementLabel(input))
+          .replace("{amount}", slot.remaining);
+        queueHtml += '<div class="queue-slot-row active">' + label + '</div>';
+      }
+    });
+    el.transportQueueList.innerHTML = queueHtml;
+  }
+
+  function showElementUnlockToast(nextElementData){
+    const dict = STRINGS[state.lang];
+    const template = dict.unlock_toast_element || "{name} unlocked";
+    el.unlockToast.textContent = template.replace("{name}", elementName(nextElementData));
+    el.unlockToast.classList.add("show");
+    setTimeout(function(){
+      el.unlockToast.classList.remove("show");
+    }, 2200);
+  }
+
+  // ============ ネオン発光演出（タップしたボックス自体が発光） ============
+  function flashBox(targetEl, flashClass){
+    targetEl.classList.remove(flashClass);
+    // reflowを挟んでアニメーションを確実に再生させる
+    void targetEl.offsetWidth;
+    targetEl.classList.add(flashClass);
+    setTimeout(()=>{
+      targetEl.classList.remove(flashClass);
+    }, 400);
+  }
+
+  // ============ アクション ============
+  // 素粒子1個の生成を試みる（成功/失敗のみ返す純粋ロジック。手動タップと自動生産機の両方から使う）
+  function tryProduceParticle(key, isManualTap){
+    const amount = isManualTap ? 1 + (state.tapPowerLevel[key] || 0) * 0.1 : 1;
+    if(key === "proton"){
+      if(!debugMode && state.protons >= state.protonCap) return false;
+      state.protons += amount;
+      return true;
+    }
+    if(key === "electron"){
+      if(!state.electronUnlocked) return false;
+      if(!debugMode && state.electrons >= state.electronCap) return false;
+      state.electrons += amount;
+      return true;
+    }
+    if(key === "neutron"){
+      if(!state.neutronUnlocked) return false;
+      if(!debugMode && state.neutrons >= state.neutronCap) return false;
+      if(!debugMode){
+        if(state.protons < 1 || state.electrons < 1) return false;
+        state.protons -= 1;
+        state.electrons -= 1;
+      }
+      state.neutrons += amount;
+      return true;
+    }
+    return false;
+  }
+
+  function tapProton(e){
+    if(!tryProduceParticle("proton", true)) return;
+    render();
+    save();
+    flashBox(el.protonBtn, "flash");
+  }
+
+  function tapElectron(e){
+    if(!tryProduceParticle("electron", true)) return;
+    render();
+    save();
+    flashBox(el.electronBtn, "flash");
+  }
+
+  function tapNeutron(e){
+    if(!tryProduceParticle("neutron", true)) return;
+    render();
+    save();
+    flashBox(el.neutronBtn, "flash");
+  }
+
+  // ============ 研究ツリー ============
+  function isResearchNodeUnlocked(nodeIndex){
+    const node = RESEARCH_NODES[nodeIndex];
+    if(node.unlock.type === "flag") return !!state[node.unlock.key];
+    if(node.unlock.type === "generatorType") return !!state.generatorTypeUnlocked[node.unlock.key];
+    if(node.unlock.type === "moleculeCategory") return !!state.moleculeCategoryUnlocked[node.unlock.key];
+    if(node.unlock.type === "substanceItem") return !!state.substanceItemUnlocked[SUBSTANCE_NAME_TO_INDEX[node.unlock.key]];
+    return false;
+  }
+
+  // 現在ツリー上に表示されている（＝親が解放済みの）未完了ノードの中に、
+  // 在庫があって今すぐ納品できる要件が1つでもあるかを判定する（研究タブの明滅表示に使う）
+  function hasDeliverableResearch(){
+    for(let i = 0; i < RESEARCH_NODES.length; i++){
+      if(isResearchNodeUnlocked(i)) continue; // 既に完了済みのノードは対象外
+      const node = RESEARCH_NODES[i];
+      const visible = node.parentId === null || isResearchNodeUnlocked(RESEARCH_ID_TO_INDEX[node.parentId]);
+      if(!visible) continue;
+      for(let r = 0; r < node.requirements.length; r++){
+        const req = node.requirements[r];
+        const progress = state.researchProgress[i][r];
+        if(progress >= req.count) continue;
+        if(requirementStock(req) > 0) return true;
+      }
+    }
+    return false;
+  }
+
+  // 現在のステップの条件が満たされていれば次のステップへ進め、バナーの文言を更新する。
+  // 全ステップ完了、またはスキップ済みなら以降は何もしない
+  function renderTutorialBanner(){
+    if(state.tutorialDismissed){
+      el.tutorialBanner.style.display = "none";
+      return;
+    }
+    let advanced = false;
+    while(state.tutorialStepIndex < TUTORIAL_FLOW.length && TUTORIAL_FLOW[state.tutorialStepIndex].done()){
+      state.tutorialStepIndex += 1;
+      advanced = true;
+    }
+    if(state.tutorialStepIndex >= TUTORIAL_FLOW.length){
+      state.tutorialDismissed = true;
+      el.tutorialBanner.style.display = "none";
+      if(advanced) save();
+      return;
+    }
+    const dict = STRINGS[state.lang];
+    el.tutorialBannerText.textContent = dict[TUTORIAL_FLOW[state.tutorialStepIndex].textKey];
+    el.tutorialBanner.style.display = "flex";
+    if(advanced) save();
+  }
+
+  function applyResearchNodeUnlock(nodeIndex){
+    const node = RESEARCH_NODES[nodeIndex];
+    if(node.unlock.type === "flag") state[node.unlock.key] = true;
+    else if(node.unlock.type === "generatorType") state.generatorTypeUnlocked[node.unlock.key] = true;
+    else if(node.unlock.type === "moleculeCategory") state.moleculeCategoryUnlocked[node.unlock.key] = true;
+    else if(node.unlock.type === "substanceItem") state.substanceItemUnlocked[SUBSTANCE_NAME_TO_INDEX[node.unlock.key]] = true;
+  }
+
+  function showResearchNodeToast(node){
+    const dict = STRINGS[state.lang];
+    if(node.unlock.type === "substanceItem"){
+      const idx = SUBSTANCE_NAME_TO_INDEX[node.unlock.key];
+      showUnlockToastText(dict.unlock_toast_substance_item.replace("{name}", substanceName(SUBSTANCE_TABLE[idx])));
+    } else {
+      showUnlockToast(node.toastKey);
+    }
+  }
+
+  function deliverResearch(nodeIndex, reqIndex){
+    const node = RESEARCH_NODES[nodeIndex];
+    if(isResearchNodeUnlocked(nodeIndex)) return; // 既に解放済み
+    const input = node.requirements[reqIndex];
+    const target = input.count;
+    const already = state.researchProgress[nodeIndex][reqIndex];
+    if(already >= target) return;
+
+    const available = debugMode ? Infinity : requirementStock(input);
+    const amount = Math.max(0, Math.min(available, target - already));
+    if(amount <= 0) return;
+
+    if(!debugMode) requirementDeduct(input, amount);
+    state.researchProgress[nodeIndex][reqIndex] += amount;
+
+    const nodeComplete = node.requirements.every(function(req, idx){
+      return state.researchProgress[nodeIndex][idx] >= req.count;
+    });
+    if(nodeComplete){
+      applyResearchNodeUnlock(nodeIndex);
+      showResearchNodeToast(node);
+      if(node.showHelp) el.warehouseHelpOverlay.classList.add("open");
+    }
+    render();
+    save();
+  }
+
+  function researchNodeBoxHtml(nodeIndex, dict){
+    const node = RESEARCH_NODES[nodeIndex];
+    const done = isResearchNodeUnlocked(nodeIndex);
+    let html = '<div class="tree-node' + (done ? " done" : "") + '">';
+    if(done) html += '<div class="tree-node-check">✓</div>';
+    html += '<div class="tree-node-name">' + dict[node.nameKey] + '</div>';
+    node.requirements.forEach(function(input, r){
+      const progress = state.researchProgress[nodeIndex][r];
+      const target = input.count;
+      const pct = Math.min(100, Math.round((progress / target) * 100));
+      const reqDone = progress >= target;
+      const deliverable = !reqDone && requirementStock(input) > 0;
+      html +=
+        '<div class="tree-node-req' + (deliverable ? " deliverable" : "") + '">' +
+          '<div class="tree-node-req-header">' +
+            '<span style="color:' + ingredientColor(input) + '">' + requirementLabel(input) + '</span>' +
+            '<span class="tree-node-req-amount display-font">' + progress + '/' + target + '</span>' +
+          '</div>' +
+          '<div class="requirement-bar-track"><div class="requirement-bar-fill" style="width:' + pct + '%"></div></div>' +
+          '<button class="requirement-load-btn" data-node="' + nodeIndex + '" data-req="' + r + '" ' + (reqDone ? "disabled" : "") + '>' +
+            (reqDone ? dict.research_complete_label : dict.research_deliver_btn) +
+          '</button>' +
+        '</div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  // 研究ツリーを再帰的に描画する。子は「親が解放済みの場合だけ」表示する（研究ツリー解放まで一切表示しない方針）
+  function appendResearchSubtree(container, nodeIndices, dict, isRoot){
+    if(!nodeIndices || nodeIndices.length === 0) return;
+    if(!isRoot){
+      container.insertAdjacentHTML("beforeend", '<div class="tree-vline"></div>');
+    }
+    if(nodeIndices.length === 1){
+      const idx = nodeIndices[0];
+      container.insertAdjacentHTML("beforeend", researchNodeBoxHtml(idx, dict));
+      if(isResearchNodeUnlocked(idx)){
+        appendResearchSubtree(container, RESEARCH_CHILDREN_MAP[RESEARCH_NODES[idx].id], dict, false);
+      }
+    } else {
+      const row = document.createElement("div");
+      row.className = "branch-row-grid";
+      nodeIndices.forEach(function(idx){
+        row.insertAdjacentHTML("beforeend", researchNodeBoxHtml(idx, dict));
+      });
+      container.appendChild(row);
+      nodeIndices.forEach(function(idx){
+        if(isResearchNodeUnlocked(idx)){
+          appendResearchSubtree(container, RESEARCH_CHILDREN_MAP[RESEARCH_NODES[idx].id], dict, false);
+        }
+      });
+    }
+  }
+
+  function renderResearch(){
+    const dict = STRINGS[state.lang];
+    el.researchNodeList.innerHTML = "";
+    appendResearchSubtree(el.researchNodeList, RESEARCH_CHILDREN_MAP.__root__, dict, true);
+    el.researchNodeList.querySelectorAll(".requirement-load-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        deliverResearch(Number(btn.getAttribute("data-node")), Number(btn.getAttribute("data-req")));
+      });
+    });
+  }
+
+  function showUnlockToast(messageKey){
+    const dict = STRINGS[state.lang];
+    el.unlockToast.textContent = dict[messageKey];
+    el.unlockToast.classList.add("show");
+    setTimeout(()=>{
+      el.unlockToast.classList.remove("show");
+    }, 2200);
+  }
+
+  // ============ セーブ / ロード ============
+  async function save(){
+    try{
+      await window.storage.set(SAVE_KEY, JSON.stringify(state), false);
+    }catch(err){
+      console.error("Save failed:", err);
+    }
+  }
+
+  // 配列の長さをテーブルの現在の要素数に合わせ、不足分をデフォルト値で補う
+  // （旧セーブデータが古いバージョンの短い配列を持っている場合、undefinedのせいで
+  //   上限チェックが常にfalse扱いになり、上限を超えて生成され続けるバグを防ぐ）
+  function ensureArrayLength(arr, length, fillValue){
+    if(!Array.isArray(arr)) return new Array(length).fill(fillValue);
+    const result = arr.slice(0, length);
+    while(result.length < length) result.push(fillValue);
+    return result;
+  }
+
+  function sanitizeState(){
+    if(typeof state.tutorialStepIndex !== "number" || state.tutorialStepIndex < 0){
+      state.tutorialStepIndex = 0;
+    }
+    if(typeof state.tutorialDismissed !== "boolean"){
+      state.tutorialDismissed = false;
+    }
+    // 旧セーブで既に元素合成まで解放済みなら、今さらチュートリアルを出す必要はない
+    if(state.elementSynthesisUnlocked){
+      state.tutorialDismissed = true;
+    }
+    if(typeof state.rewardAdCooldownRemaining !== "number" || state.rewardAdCooldownRemaining < 0){
+      state.rewardAdCooldownRemaining = 0;
+    }
+    if(typeof state.windupDurationBuffExpiresAt !== "number"){ state.windupDurationBuffExpiresAt = 0; }
+    if(typeof state.windupOutputBuffExpiresAt !== "number"){ state.windupOutputBuffExpiresAt = 0; }
+    if(!state.tapPowerLevel || typeof state.tapPowerLevel !== "object"){
+      state.tapPowerLevel = { proton:0, electron:0, neutron:0 };
+    }
+    PARTICLE_KEYS.forEach(function(key){
+      if(typeof state.tapPowerLevel[key] !== "number" || state.tapPowerLevel[key] < 0){
+        state.tapPowerLevel[key] = 0;
+      }
+    });
+    if(!state.generatorTypeUnlocked || typeof state.generatorTypeUnlocked !== "object"){
+      state.generatorTypeUnlocked = { coal:false, oil:false, solar:false, fission:false, fusion:false };
+    }
+    if(!state.moleculeCategoryUnlocked || typeof state.moleculeCategoryUnlocked !== "object"){
+      state.moleculeCategoryUnlocked = { gas:false, liquid:false, solid:false };
+    }
+    state.substanceItemUnlocked = ensureArrayLength(state.substanceItemUnlocked, SUBSTANCE_TABLE.length, false);
+    // researchProgressは「ノードごとに、要件ごとの納品済み量」を持つ配列の配列。
+    // 旧形式（ノードごとに1つの数値だけを持つフラットな配列）からの移行にも対応する
+    if(!Array.isArray(state.researchProgress) || (state.researchProgress.length > 0 && !Array.isArray(state.researchProgress[0]))){
+      state.researchProgress = RESEARCH_NODES.map(function(){ return []; });
+    }
+    state.researchProgress = ensureArrayLength(state.researchProgress, RESEARCH_NODES.length, []);
+    state.researchProgress = state.researchProgress.map(function(reqProgress, idx){
+      return ensureArrayLength(reqProgress, RESEARCH_NODES[idx].requirements.length, 0);
+    });
+    if(typeof state.researchUnlockedCount !== "number" || state.researchUnlockedCount < 1){
+      state.researchUnlockedCount = 1;
+    }
+    // 旧セーブ（研究ツリー導入前、しきい値/一括で自動解放されていた）からの移行:
+    // 既にunlockFieldがtrueなら、対応する研究ノードの全要件も納品済み扱いにする
+    RESEARCH_NODES.forEach(function(node, idx){
+      if(state[node.unlockField]){
+        node.requirements.forEach(function(req, r){
+          if(state.researchProgress[idx][r] < req.count) state.researchProgress[idx][r] = req.count;
+        });
+        if(idx + 1 >= state.researchUnlockedCount && idx + 1 < RESEARCH_NODES.length){
+          state.researchUnlockedCount = idx + 2;
+        }
+      }
+    });
+    state.elementCaps = ensureArrayLength(state.elementCaps, ELEMENT_TABLE.length, INITIAL_CAP);
+    state.elementCapLevels = ensureArrayLength(state.elementCapLevels, ELEMENT_TABLE.length, 0);
+    state.elementCounts = ensureArrayLength(state.elementCounts, ELEMENT_TABLE.length, 0);
+    state.moleculeCaps = ensureArrayLength(state.moleculeCaps, MOLECULE_TABLE.length, INITIAL_CAP);
+    state.moleculeCapLevels = ensureArrayLength(state.moleculeCapLevels, MOLECULE_TABLE.length, 0);
+    state.moleculeCounts = ensureArrayLength(state.moleculeCounts, MOLECULE_TABLE.length, 0);
+    state.substanceCaps = ensureArrayLength(state.substanceCaps, SUBSTANCE_TABLE.length, INITIAL_CAP);
+    state.substanceCapLevels = ensureArrayLength(state.substanceCapLevels, SUBSTANCE_TABLE.length, 0);
+    state.substanceCounts = ensureArrayLength(state.substanceCounts, SUBSTANCE_TABLE.length, 0);
+    state.autoAssigned.element = ensureArrayLength(state.autoAssigned.element, ELEMENT_TABLE.length, 0);
+    state.autoProgress.element = ensureArrayLength(state.autoProgress.element, ELEMENT_TABLE.length, 0);
+    state.autoAssigned.molecule = ensureArrayLength(state.autoAssigned.molecule, MOLECULE_TABLE.length, 0);
+    state.autoProgress.molecule = ensureArrayLength(state.autoProgress.molecule, MOLECULE_TABLE.length, 0);
+    state.autoAssigned.substance = ensureArrayLength(state.autoAssigned.substance, SUBSTANCE_TABLE.length, 0);
+    state.autoProgress.substance = ensureArrayLength(state.autoProgress.substance, SUBSTANCE_TABLE.length, 0);
+    // 万一カウントが上限を超えてしまっているデータがあれば上限に合わせて丸める
+    for(let i = 0; i < ELEMENT_TABLE.length; i++){
+      if(state.elementCounts[i] > state.elementCaps[i]) state.elementCounts[i] = state.elementCaps[i];
+    }
+    for(let j = 0; j < MOLECULE_TABLE.length; j++){
+      if(state.moleculeCounts[j] > state.moleculeCaps[j]) state.moleculeCounts[j] = state.moleculeCaps[j];
+    }
+    for(let k = 0; k < SUBSTANCE_TABLE.length; k++){
+      if(state.substanceCounts[k] > state.substanceCaps[k]) state.substanceCounts[k] = state.substanceCaps[k];
+    }
+    // 太陽系: 現在建設中の天体のインデックス・進捗配列・輸送キューの整合性を保つ
+    if(state.buildMode !== "solar" && state.buildMode !== "galaxy"){
+      state.buildMode = "solar";
+    }
+    if(typeof state.currentBodyIndex !== "number" || state.currentBodyIndex < 0){
+      state.currentBodyIndex = 0;
+    }
+    if(state.currentBodyIndex >= CELESTIAL_BODIES.length){
+      // 旧セーブが「太陽系完成後、進行が止まっていた」状態の場合は銀河生成モードへ移行する
+      state.currentBodyIndex = CELESTIAL_BODIES.length - 1;
+      state.buildMode = "galaxy";
+    }
+    if(state.buildMode === "galaxy"){
+      state.galaxyProgress = ensureArrayLength(state.galaxyProgress, GALAXY_REQUIREMENTS.length, 0);
+    } else {
+      state.currentBodyProgress = ensureArrayLength(
+        state.currentBodyProgress,
+        CELESTIAL_BODIES[state.currentBodyIndex].requirements.length,
+        0
+      );
+    }
+    if(!state.transportQueue || state.transportQueue.length < state.transportSlots){
+      const current = Array.isArray(state.transportQueue) ? state.transportQueue : [];
+      while(current.length < state.transportSlots){ current.push({ reqIndex:null, remaining:0 }); }
+      state.transportQueue = current;
+    } else if(state.transportQueue.length > state.transportSlots){
+      state.transportQueue = state.transportQueue.slice(0, state.transportSlots);
+    }
+  }
+
+  // 旧セーブ形式からの移行対応を含めて、読み込んだデータをstateへ反映する（load()・インポート機能で共用）
+  function applyLoadedData(loaded){
+    // 旧セーブ形式（自動生産機が元素だけの配列だった頃）からの移行対応
+    if(Array.isArray(loaded.autoAssigned)){
+      const oldAssigned = loaded.autoAssigned;
+      const oldProgress = Array.isArray(loaded.autoProgress) ? loaded.autoProgress : [];
+      loaded.autoAssigned = {
+        particle:{ proton:0, electron:0, neutron:0 },
+        element:oldAssigned,
+        molecule:new Array(MOLECULE_TABLE.length).fill(0),
+        substance:new Array(SUBSTANCE_TABLE.length).fill(0)
+      };
+      loaded.autoProgress = {
+        particle:{ proton:0, electron:0, neutron:0 },
+        element:oldProgress,
+        molecule:new Array(MOLECULE_TABLE.length).fill(0),
+        substance:new Array(SUBSTANCE_TABLE.length).fill(0)
+      };
+    }
+    // 旧セーブ形式（タブが元素合成解放とまとめて開放されていた頃）からの移行対応:
+    // 既にelementSynthesisUnlockedがtrueだったプレイヤーは、各タブも既に使えていたはずなので
+    // 新しい個別解放フラグが未保存（=このアップデート以前のセーブ）なら引き継いで解放済み扱いにする
+    if(loaded.elementSynthesisUnlocked && !("warehouseUnlocked" in loaded)){
+      loaded.warehouseUnlocked = true;
+      loaded.powerUnlocked = true;
+      loaded.moleculesUnlocked = true;
+      loaded.substancesUnlocked = true;
+      loaded.solarUnlocked = true;
+    }
+    // 旧セーブ形式（研究ツリーが細分化される前、タブ単位でしか解放管理していなかった頃）からの移行対応:
+    // 既にpowerUnlocked/moleculesUnlocked/substancesUnlockedがtrueだったプレイヤーは、
+    // 中身（各発電機・各分子カテゴリ・各物質）も既に全て使えていたはずなので、
+    // 新しい細分化フラグが未保存なら引き継いで全て解放済み扱いにする
+    if(loaded.powerUnlocked && !("generatorTypeUnlocked" in loaded)){
+      loaded.generatorTypeUnlocked = { coal:true, oil:true, solar:true, fission:true, fusion:true };
+    }
+    if(loaded.moleculesUnlocked && !("moleculeCategoryUnlocked" in loaded)){
+      loaded.moleculeCategoryUnlocked = { gas:true, liquid:true, solid:true };
+    }
+    if(loaded.substancesUnlocked && !("substanceItemUnlocked" in loaded)){
+      loaded.substanceItemUnlocked = new Array(SUBSTANCE_TABLE.length).fill(true);
+    }
+    state = Object.assign(state, loaded);
+  }
+
+  async function load(){
+    try{
+      const result = await window.storage.get(SAVE_KEY, false);
+      if(result && result.value){
+        applyLoadedData(JSON.parse(result.value));
+      }
+    }catch(err){
+      // キーが存在しない場合はここに来る（初回起動）
+      console.log("No existing save found, starting fresh.");
+    }
+    sanitizeState();
+  }
+
+  // ============ セーブデータのエクスポート/インポート ============
+  function exportSaveFile(){
+    const dataStr = JSON.stringify(state);
+    const blob = new Blob([dataStr], { type:"application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.download = "genso-clicker-save-" + dateStr + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async function importSaveFile(file){
+    const dict = STRINGS[state.lang];
+    try{
+      const text = await file.text();
+      const loaded = JSON.parse(text);
+      if(!confirm(dict.import_confirm)) return;
+      applyLoadedData(loaded);
+      sanitizeState();
+      applyLanguage();
+      render();
+      await save();
+      alert(dict.import_success);
+    }catch(err){
+      console.error("Import failed:", err);
+      alert(dict.import_error);
+    }
+  }
+
+  async function resetSave(){
+    const dict = STRINGS[state.lang];
+    if(!confirm(dict.reset_confirm)) return;
+    state = {
+      protons:0, electrons:0, neutrons:0,
+      energy:0,
+      protonCap:INITIAL_CAP, electronCap:INITIAL_CAP, neutronCap:INITIAL_CAP,
+      protonCapLevel:0, electronCapLevel:0, neutronCapLevel:0,
+      elementCaps:new Array(ELEMENT_TABLE.length).fill(INITIAL_CAP),
+      elementCapLevels:new Array(ELEMENT_TABLE.length).fill(0),
+      electronUnlocked:false, neutronUnlocked:false,
+      elementSynthesisUnlocked:false,
+      warehouseUnlocked:false,
+      powerUnlocked:false,
+      moleculesUnlocked:false,
+      substancesUnlocked:false,
+      solarUnlocked:false,
+      generatorTypeUnlocked:{ coal:false, oil:false, solar:false, fission:false, fusion:false },
+      moleculeCategoryUnlocked:{ gas:false, liquid:false, solid:false },
+      substanceItemUnlocked:new Array(SUBSTANCE_TABLE.length).fill(false),
+      researchProgress:RESEARCH_NODES.map(function(n){ return new Array(n.requirements.length).fill(0); }),
+      tutorialStepIndex:0,
+      tutorialDismissed:false,
+      rewardAdCooldownRemaining:0,
+      windupDurationBuffExpiresAt:state.windupDurationBuffExpiresAt,
+      windupOutputBuffExpiresAt:state.windupOutputBuffExpiresAt,
+      tapPowerLevel:{ proton:0, electron:0, neutron:0 },
+      elementsUnlockedCount:1,
+      elementCounts:new Array(ELEMENT_TABLE.length).fill(0),
+      generatorOwned:{ coal:0, oil:0, solar:0, fission:0, fusion:0 },
+      generatorUnitTimers:{ coal:[], oil:[], fission:[], fusion:[] },
+      windupTimeRemaining:0,
+      autoAssigned:{
+        particle:{ proton:0, electron:0, neutron:0 },
+        element:new Array(ELEMENT_TABLE.length).fill(0),
+        molecule:new Array(MOLECULE_TABLE.length).fill(0),
+        substance:new Array(SUBSTANCE_TABLE.length).fill(0)
+      },
+      autoProgress:{
+        particle:{ proton:0, electron:0, neutron:0 },
+        element:new Array(ELEMENT_TABLE.length).fill(0),
+        molecule:new Array(MOLECULE_TABLE.length).fill(0),
+        substance:new Array(SUBSTANCE_TABLE.length).fill(0)
+      },
+      powerGen:0,
+      powerDemand:0,
+      moleculeCounts:new Array(MOLECULE_TABLE.length).fill(0),
+      moleculeCaps:new Array(MOLECULE_TABLE.length).fill(INITIAL_CAP),
+      moleculeCapLevels:new Array(MOLECULE_TABLE.length).fill(0),
+      substanceCounts:new Array(SUBSTANCE_TABLE.length).fill(0),
+      substanceCaps:new Array(SUBSTANCE_TABLE.length).fill(INITIAL_CAP),
+      substanceCapLevels:new Array(SUBSTANCE_TABLE.length).fill(0),
+      currentBodyIndex:0,
+      currentBodyProgress:new Array(CELESTIAL_BODIES[0].requirements.length).fill(0),
+      buildMode:"solar",
+      galaxyProgress:new Array(GALAXY_REQUIREMENTS.length).fill(0),
+      transportSpeedLevel:0,
+      transportSlotsLevel:0,
+      transportSpeed:TRANSPORT_SPEED_BASE,
+      transportSlots:TRANSPORT_SLOTS_BASE,
+      transportQueue:new Array(TRANSPORT_SLOTS_BASE).fill(null).map(function(){ return { reqIndex:null, remaining:0 }; }),
+      lang:state.lang
+    };
+    sellMode = false;
+    el.sellModeBtn.classList.remove("active");
+    el.elementsGrid.innerHTML = "";
+    el.elementCapList.innerHTML = "";
+    el.moleculesGrid.innerHTML = "";
+    el.moleculeCapList.innerHTML = "";
+    el.substancesGrid.innerHTML = "";
+    el.substanceCapList.innerHTML = "";
+    try{
+      await window.storage.set(SAVE_KEY, JSON.stringify(state), false);
+    }catch(err){
+      console.error("Reset save failed:", err);
+    }
+    render();
+  }
+
+  // ============ イベント登録 ============
+  el.protonBtn.addEventListener("click", tapProton);
+  el.electronBtn.addEventListener("click", tapElectron);
+  el.neutronBtn.addEventListener("click", tapNeutron);
+  el.sellModeBtn.addEventListener("click", toggleSellMode);
+  el.protonCapBtn.addEventListener("click", ()=>expandCap("proton"));
+  el.electronCapBtn.addEventListener("click", ()=>expandCap("electron"));
+  el.neutronCapBtn.addEventListener("click", ()=>expandCap("neutron"));
+  el.autoBtnProton.addEventListener("click", ()=>buyAutoProducerParticle("proton"));
+  el.autoBtnElectron.addEventListener("click", ()=>buyAutoProducerParticle("electron"));
+  el.autoBtnNeutron.addEventListener("click", ()=>buyAutoProducerParticle("neutron"));
+  el.tapPowerBtnProton.addEventListener("click", ()=>buyTapPower("proton"));
+  el.tapPowerBtnElectron.addEventListener("click", ()=>buyTapPower("electron"));
+  el.tapPowerBtnNeutron.addEventListener("click", ()=>buyTapPower("neutron"));
+
+  el.settingsBtn.addEventListener("click", ()=>{
+    el.settingsOverlay.classList.add("open");
+  });
+  el.closeSettings.addEventListener("click", ()=>{
+    el.settingsOverlay.classList.remove("open");
+  });
+  el.settingsOverlay.addEventListener("click", (e)=>{
+    if(e.target === el.settingsOverlay) el.settingsOverlay.classList.remove("open");
+  });
+
+  let settingsTitleTapCount = 0;
+  el.settingsTitle.addEventListener("click", ()=>{
+    settingsTitleTapCount += 1;
+    if(settingsTitleTapCount >= 10){
+      settingsTitleTapCount = 0;
+      debugMode = !debugMode;
+      render();
+      showUnlockToast(debugMode ? "debug_mode_on" : "debug_mode_off");
+    }
+  });
+
+  el.researchTabBtn.addEventListener("click", ()=>{
+    el.researchOverlay.classList.add("open");
+  });
+  el.closeResearch.addEventListener("click", ()=>{
+    el.researchOverlay.classList.remove("open");
+  });
+  el.researchOverlay.addEventListener("click", (e)=>{
+    if(e.target === el.researchOverlay) el.researchOverlay.classList.remove("open");
+  });
+
+  el.warehouseTabBtn.addEventListener("click", ()=>{
+    el.warehouseOverlay.classList.add("open");
+  });
+  el.closeWarehouse.addEventListener("click", ()=>{
+    el.warehouseOverlay.classList.remove("open");
+  });
+  el.warehouseOverlay.addEventListener("click", (e)=>{
+    if(e.target === el.warehouseOverlay) el.warehouseOverlay.classList.remove("open");
+  });
+
+  const warehousePanes = {
+    particles:document.getElementById("warehousePaneParticles"),
+    elements:document.getElementById("warehousePaneElements"),
+    molecules:document.getElementById("warehousePaneMolecules"),
+    substances:document.getElementById("warehousePaneSubstances")
+  };
+  document.querySelectorAll(".warehouse-subtab").forEach(function(tabBtn){
+    tabBtn.addEventListener("click", function(){
+      const target = tabBtn.getAttribute("data-pane");
+      document.querySelectorAll(".warehouse-subtab").forEach(function(b){ b.classList.toggle("active", b === tabBtn); });
+      Object.keys(warehousePanes).forEach(function(key){
+        warehousePanes[key].style.display = (key === target) ? "" : "none";
+      });
+    });
+  });
+
+  el.closeWarehouseHelp.addEventListener("click", ()=>{
+    el.warehouseHelpOverlay.classList.remove("open");
+  });
+  el.warehouseHelpOverlay.addEventListener("click", (e)=>{
+    if(e.target === el.warehouseHelpOverlay) el.warehouseHelpOverlay.classList.remove("open");
+  });
+
+  el.powerTabBtn.addEventListener("click", ()=>{
+    el.powerOverlay.classList.add("open");
+  });
+  el.closePower.addEventListener("click", ()=>{
+    el.powerOverlay.classList.remove("open");
+  });
+  el.powerOverlay.addEventListener("click", (e)=>{
+    if(e.target === el.powerOverlay) el.powerOverlay.classList.remove("open");
+  });
+  el.windupBtn.addEventListener("click", tapWindup);
+
+  function switchContentTab(paneName){
+    const tabs = { elements:el.contentTabElements, molecules:el.contentTabMolecules, substances:el.contentTabSubstances };
+    const panes = { elements:el.contentPaneElements, molecules:el.contentPaneMolecules, substances:el.contentPaneSubstances };
+    Object.keys(tabs).forEach(function(key){
+      tabs[key].classList.toggle("active", key === paneName);
+      panes[key].classList.toggle("active", key === paneName);
+    });
+  }
+  el.contentTabElements.addEventListener("click", ()=>switchContentTab("elements"));
+  el.contentTabMolecules.addEventListener("click", ()=>switchContentTab("molecules"));
+  el.contentTabSubstances.addEventListener("click", ()=>switchContentTab("substances"));
+
+  el.solarTabBtn.addEventListener("click", ()=>{
+    el.solarOverlay.classList.add("open");
+  });
+  el.closeSolar.addEventListener("click", ()=>{
+    el.solarOverlay.classList.remove("open");
+  });
+  el.solarOverlay.addEventListener("click", (e)=>{
+    if(e.target === el.solarOverlay) el.solarOverlay.classList.remove("open");
+  });
+  el.transportSpeedBtn.addEventListener("click", expandTransportSpeed);
+  el.transportSlotsBtn.addEventListener("click", expandTransportSlots);
+
+  el.langJa.addEventListener("click", ()=>{
+    state.lang = "ja";
+    applyLanguage();
+    save();
+  });
+  el.langEn.addEventListener("click", ()=>{
+    state.lang = "en";
+    applyLanguage();
+    save();
+  });
+
+  el.resetBtn.addEventListener("click", resetSave);
+
+  el.exportSaveBtn.addEventListener("click", exportSaveFile);
+  el.importSaveBtn.addEventListener("click", ()=>{
+    el.importFileInput.click();
+  });
+  el.importFileInput.addEventListener("change", (e)=>{
+    const file = e.target.files[0];
+    if(file) importSaveFile(file);
+    e.target.value = ""; // 同じファイルを選び直しても change が発火するようにリセット
+  });
+
+  el.tutorialBannerSkipBtn.addEventListener("click", function(){
+    state.tutorialDismissed = true;
+    el.tutorialBanner.style.display = "none";
+    save();
+  });
+
+  el.rewardAdWatchBtn.addEventListener("click", startRewardAdPlayback);
+  el.rewardAdCloseBtn.addEventListener("click", closeRewardAdOffer);
+  el.windupDurationBuffBtn.addEventListener("click", ()=>startGeneratorBuffAd("duration"));
+  el.windupOutputBuffBtn.addEventListener("click", ()=>startGeneratorBuffAd("output"));
+
+  // ============ 初期化 ============
+  async function init(){
+    await load();
+    applyLanguage();
+    render();
+    setInterval(gameTick, 1000);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
