@@ -621,6 +621,9 @@
     font-size:13px;
   }
   .modal-row:last-of-type{ border-bottom:none; }
+  .vol-slider-wrap{ display:flex; align-items:center; gap:8px; }
+  .vol-slider{ width:110px; accent-color:var(--accent); cursor:pointer; }
+  .vol-val{ font-size:12px; color:var(--text-dim); min-width:36px; text-align:right; font-variant-numeric:tabular-nums; }
   .lang-switch{
     display:flex;
     background:var(--bg-main);
@@ -1430,6 +1433,20 @@
   <div class="modal">
     <h2 data-i18n="settings_title" id="settingsTitle">設定</h2>
     <div class="modal-row">
+      <span data-i18n="se_vol_label">SE音量</span>
+      <div class="vol-slider-wrap">
+        <input type="range" id="seVolSlider" min="0" max="100" value="100" class="vol-slider">
+        <span id="seVolVal" class="vol-val">100%</span>
+      </div>
+    </div>
+    <div class="modal-row">
+      <span data-i18n="bgm_vol_label">BGM音量</span>
+      <div class="vol-slider-wrap">
+        <input type="range" id="bgmVolSlider" min="0" max="100" value="35" class="vol-slider">
+        <span id="bgmVolVal" class="vol-val">35%</span>
+      </div>
+    </div>
+    <div class="modal-row">
       <span data-i18n="language_label">言語</span>
       <div class="lang-switch">
         <button id="langJa" class="active">日本語</button>
@@ -2094,6 +2111,8 @@
       settings_title:"設定",
       debug_mode_on:"デバッグモードが有効になりました",
       debug_mode_off:"デバッグモードを解除しました",
+      se_vol_label:"SE音量",
+      bgm_vol_label:"BGM音量",
       language_label:"言語",
       save_label:"セーブデータ",
       backup_label:"バックアップ",
@@ -2262,6 +2281,8 @@
       settings_title:"Settings",
       debug_mode_on:"Debug mode enabled",
       debug_mode_off:"Debug mode disabled",
+      se_vol_label:"SE Volume",
+      bgm_vol_label:"BGM Volume",
       language_label:"Language",
       save_label:"Save Data",
       backup_label:"Backup",
@@ -2967,6 +2988,10 @@
     transportQueueList:document.getElementById("transportQueueList"),
     bgmBtn:document.getElementById("bgmBtn"),
     bgmAudio:document.getElementById("bgmAudio"),
+    seVolSlider:document.getElementById("seVolSlider"),
+    seVolVal:document.getElementById("seVolVal"),
+    bgmVolSlider:document.getElementById("bgmVolSlider"),
+    bgmVolVal:document.getElementById("bgmVolVal"),
     saveBtn:document.getElementById("saveBtn"),
     settingsBtn:document.getElementById("settingsBtn"),
     settingsTitle:document.getElementById("settingsTitle"),
@@ -4985,8 +5010,9 @@
       const c = _getAC();
       const doPlay = function(buf){
         const src = c.createBufferSource();
+        const g = c.createGain(); g.gain.value = _seVolume;
         src.buffer = buf;
-        src.connect(c.destination);
+        src.connect(g); g.connect(c.destination);
         src.start();
       };
       if(_successBuffer){ doPlay(_successBuffer); }
@@ -4998,7 +5024,7 @@
   function playSE_fail(){
     try{
       const c = _getAC();
-      const M = c.createGain(); M.gain.value = 0.42; M.connect(c.destination);
+      const M = c.createGain(); M.gain.value = 0.42 * _seVolume; M.connect(c.destination);
       [[380,175,0],[300,140,0.075]].forEach(function([sf,ef,delay]){
         const o = c.createOscillator(), g = c.createGain();
         o.connect(g); g.connect(M); o.type = 'square';
@@ -5016,7 +5042,7 @@
   function playSE_unlock(){
     try{
       const c = _getAC();
-      const M = c.createGain(); M.gain.value = 0.46; M.connect(c.destination);
+      const M = c.createGain(); M.gain.value = 0.46 * _seVolume; M.connect(c.destination);
       [[880,0],[1108,0.07],[1318,0.14],[1760,0.21],[2093,0.30],[1760,0.38],[2637,0.46]].forEach(function([f,delay]){
         const t = c.currentTime + delay;
         const decay = 0.48 + (f / 2637) * 0.32;
@@ -5036,6 +5062,26 @@
     }catch(e){}
   }
 
+  // 音量設定
+  let _seVolume = 1.0;
+  let _bgmVolume = 0.35;
+  function _loadVolPrefs(){
+    try{
+      const s = localStorage.getItem("af_vol");
+      if(s){ const j = JSON.parse(s); _seVolume = j.se ?? 1.0; _bgmVolume = j.bgm ?? 0.35; }
+    }catch(e){}
+  }
+  function _saveVolPrefs(){
+    try{ localStorage.setItem("af_vol", JSON.stringify({se:_seVolume, bgm:_bgmVolume})); }catch(e){}
+  }
+  function _initVolSliders(){
+    _loadVolPrefs();
+    el.seVolSlider.value = Math.round(_seVolume * 100);
+    el.bgmVolSlider.value = Math.round(_bgmVolume * 100);
+    el.seVolVal.textContent = Math.round(_seVolume * 100) + "%";
+    el.bgmVolVal.textContent = Math.round(_bgmVolume * 100) + "%";
+  }
+
   // BGM
   let _bgmMuted = false;
   let _bgmStarted = false;
@@ -5043,7 +5089,7 @@
     if(_bgmStarted) return;
     _bgmStarted = true;
     el.bgmAudio.src = "data:audio/mpeg;base64," + _BGM_B64;
-    el.bgmAudio.volume = 0.35;
+    el.bgmAudio.volume = _bgmVolume;
     if(!_bgmMuted) el.bgmAudio.play().catch(function(){});
     _updateBGMBtn();
   }
@@ -5815,6 +5861,18 @@
   el.tapPowerBtnSubstance.addEventListener("click", ()=>buyCraftTapPower("substance"));
 
   el.bgmBtn.addEventListener("click", ()=>{ _toggleBGM(); });
+  el.seVolSlider.addEventListener("input", ()=>{
+    _seVolume = el.seVolSlider.value / 100;
+    el.seVolVal.textContent = el.seVolSlider.value + "%";
+    _saveVolPrefs();
+  });
+  el.bgmVolSlider.addEventListener("input", ()=>{
+    _bgmVolume = el.bgmVolSlider.value / 100;
+    el.bgmVolVal.textContent = el.bgmVolSlider.value + "%";
+    if(_bgmStarted) el.bgmAudio.volume = _bgmVolume;
+    _saveVolPrefs();
+  });
+  _initVolSliders();
   el.saveBtn.addEventListener("click", async ()=>{
     await save();
     const dict = STRINGS[state.lang];
