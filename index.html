@@ -1609,6 +1609,14 @@
     <button class="modal-close" id="closeWarehouseHelp" data-i18n="close_btn">閉じる</button>
   </div>
 </div>
+
+<div class="modal-overlay" id="storageTheoryHelpOverlay">
+  <div class="modal">
+    <h2 data-i18n="storage_theory_help_title">「強化」が解放されました</h2>
+    <p class="help-text" data-i18n="storage_theory_help_body">⚡エネルギーを使って、各素材の貯蔵上限の拡張・自動生産機の購入・タップ時の生産個数の強化ができます。<br><br>エネルギーは元素・分子・物質を「売却」することで獲得できます。まずは上限を拡張して、より多くの素材を貯めましょう。<br><br>自動生産機の稼働には動力理論解放で生産が可能になる発電施設が必要となります。</p>
+    <button class="modal-close" id="closeStorageTheoryHelp" data-i18n="close_btn">閉じる</button>
+  </div>
+</div>
   </div>
 </div>
 
@@ -1929,6 +1937,8 @@
       category_materials:"全物質",
       warehouse_help_title:"元素合成が解放されました",
       warehouse_help_body:"元素合成が解放されました。素粒子から元素をクラフトできます。元素は『売却モード』ボタンをオンにして元素ボタンをタップするとエネルギーに変換できます。エネルギーは『強化理論解放後』に各種アップグレードに使用できます。",
+      storage_theory_help_title:"「強化」が解放されました",
+      storage_theory_help_body:"⚡エネルギーを使って、各素材の貯蔵上限の拡張・自動生産機の購入・タップ時の生産個数の強化ができます。\n\nエネルギーは元素・分子・物質を「売却」することで獲得できます。まずは上限を拡張して、より多くの素材を貯めましょう。\n\n自動生産機の稼働には動力理論解放で生産が可能になる発電施設が必要となります。",
       power_tab:"発電",
       power_title:"発電",
       power_generation_label:"発電量",
@@ -2084,6 +2094,8 @@
       category_materials:"All Substances",
       warehouse_help_title:"Element Synthesis Unlocked",
       warehouse_help_body:"Atom synthesis is now unlocked. You can craft elements from particles. Turn on 'Sell Mode' and tap an element button to convert it into Energy. Energy can be spent on various upgrades once Enhancement Theory is unlocked.",
+      storage_theory_help_title:"Enhancement Unlocked",
+      storage_theory_help_body:"Spend ⚡ Energy to expand storage caps, purchase auto-producers, and boost per-tap production.\n\nSell elements, molecules, and materials to earn Energy. Start by expanding your caps to store more resources.\n\nAuto-producers require power from generators, which become available after unlocking Power Theory.",
       power_tab:"Power",
       power_title:"Power",
       power_generation_label:"Generation",
@@ -2583,7 +2595,7 @@
     { id:"synthesis_theory", parentId:"neutron_theory", nameKey:"research_node_synthesis", unlock:{type:"flag", key:"elementSynthesisUnlocked"}, toastKey:"unlock_toast_elements", showHelp:true, req:[["p","neutrons",50]] },
 
     // 枝1: 貯蔵・動力・発電機チェーン
-    { id:"storage_theory", parentId:"synthesis_theory", nameKey:"research_node_storage", unlock:{type:"flag", key:"warehouseUnlocked"}, toastKey:"unlock_toast_warehouse", req:[["e","He",10]] },
+    { id:"storage_theory", parentId:"synthesis_theory", nameKey:"research_node_storage", unlock:{type:"flag", key:"warehouseUnlocked"}, toastKey:"unlock_toast_warehouse", showStorageTheoryHelp:true, req:[["e","He",10]] },
     { id:"power_theory", parentId:"storage_theory", nameKey:"research_node_power", unlock:{type:"flag", key:"powerUnlocked"}, toastKey:"unlock_toast_power", req:[["e","Fe",20],["e","Cu",10]] },
     { id:"gen_coal_theory", parentId:"power_theory", nameKey:"research_node_gen_coal", unlock:{type:"generatorType", key:"coal"}, toastKey:"unlock_toast_gen_coal", req:[["e","C",20]] },
     { id:"gen_oil_theory", parentId:"gen_coal_theory", nameKey:"research_node_gen_oil", unlock:{type:"generatorType", key:"oil"}, toastKey:"unlock_toast_gen_oil", req:[["e","C",10],["e","H",10]] },
@@ -2616,7 +2628,7 @@
 
   const RESEARCH_NODES = RESEARCH_NODES_RAW.map(function(n){
     return {
-      id:n.id, parentId:n.parentId, nameKey:n.nameKey, unlock:n.unlock, toastKey:n.toastKey, showHelp:!!n.showHelp,
+      id:n.id, parentId:n.parentId, nameKey:n.nameKey, unlock:n.unlock, toastKey:n.toastKey, showHelp:!!n.showHelp, showStorageTheoryHelp:!!n.showStorageTheoryHelp,
       requirements:n.req.map(resolveTriple)
     };
   });
@@ -2798,6 +2810,8 @@
     warehouseOverlay:document.getElementById("warehouseOverlay"),
     closeWarehouse:document.getElementById("closeWarehouse"),
     warehouseHelpOverlay:document.getElementById("warehouseHelpOverlay"),
+    storageTheoryHelpOverlay:document.getElementById("storageTheoryHelpOverlay"),
+    closeStorageTheoryHelp:document.getElementById("closeStorageTheoryHelp"),
     closeWarehouseHelp:document.getElementById("closeWarehouseHelp"),
     powerTabBtn:document.getElementById("powerTabBtn"),
     powerOverlay:document.getElementById("powerOverlay"),
@@ -4832,6 +4846,10 @@
       applyResearchNodeUnlock(nodeIndex);
       showResearchNodeToast(node);
       if(node.showHelp) el.warehouseHelpOverlay.classList.add("open");
+      if(node.showStorageTheoryHelp){
+        el.storageTheoryHelpOverlay.classList.add("open");
+        el.warehouseTabBtn.classList.add("pulse-attention");
+      }
     }
     render();
     save();
@@ -5481,6 +5499,7 @@
 
   el.warehouseTabBtn.addEventListener("click", ()=>{
     el.warehouseOverlay.classList.add("open");
+    el.warehouseTabBtn.classList.remove("pulse-attention");
   });
   el.closeWarehouse.addEventListener("click", ()=>{
     el.warehouseOverlay.classList.remove("open");
@@ -5510,6 +5529,12 @@
   });
   el.warehouseHelpOverlay.addEventListener("click", (e)=>{
     if(e.target === el.warehouseHelpOverlay) el.warehouseHelpOverlay.classList.remove("open");
+  });
+  el.closeStorageTheoryHelp.addEventListener("click", ()=>{
+    el.storageTheoryHelpOverlay.classList.remove("open");
+  });
+  el.storageTheoryHelpOverlay.addEventListener("click", (e)=>{
+    if(e.target === el.storageTheoryHelpOverlay) el.storageTheoryHelpOverlay.classList.remove("open");
   });
 
   el.powerTabBtn.addEventListener("click", ()=>{
