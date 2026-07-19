@@ -1618,6 +1618,14 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="astroTheoryHelpOverlay">
+  <div class="modal">
+    <h2 data-i18n="astro_theory_help_title">「太陽系」が解放されました</h2>
+    <p class="help-text" data-i18n="astro_theory_help_body">太陽系構築が解放されました。恒星・惑星・衛星を順番に建設し、太陽系を完成させましょう。\n\n建設には鉄・ケイ素などの精錬された物質素材が必要です。\n\n一度に建設できる天体は一つだけで、素材を納入するたびに工事が進捗します。\n\nすべての惑星を完成させるとゲームクリアです。</p>
+    <button class="modal-close" id="closeAstroTheoryHelp" data-i18n="close_btn">閉じる</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="powerTheoryHelpOverlay">
   <div class="modal">
     <h2 data-i18n="power_theory_help_title">「発電」が解放されました</h2>
@@ -1947,6 +1955,8 @@
       warehouse_help_body:"元素合成が解放されました。素粒子から元素をクラフトできます。元素は『売却モード』ボタンをオンにして元素ボタンをタップするとエネルギーに変換できます。エネルギーは『強化理論解放後』に各種アップグレードに使用できます。",
       storage_theory_help_title:"「強化」が解放されました",
       storage_theory_help_body:"⚡エネルギーを使って、各素材の貯蔵上限の拡張・自動生産機の購入・タップ時の生産個数の強化ができます。\n\nエネルギーは元素・分子・物質を「売却」することで獲得できます。まずは上限を拡張して、より多くの素材を貯めましょう。\n\n自動生産機の稼働には動力理論解放で生産が可能になる発電施設が必要となります。",
+      astro_theory_help_title:"「太陽系」が解放されました",
+      astro_theory_help_body:"太陽系構築が解放されました。恒星・惑星・衛星を順番に建設し、太陽系を完成させましょう。\n\n建設には鉄・ケイ素などの精錬された物質素材が必要です。\n\n一度に建設できる天体は一つだけで、素材を納入するたびに工事が進捗します。\n\nすべての惑星を完成させるとゲームクリアです。",
       power_theory_help_title:"「発電」が解放されました",
       power_theory_help_body:"自動生産機の稼働には電力（MW）が必要です。発電量が消費電力を下回ると自動生産機が停止します。\n\nまずは空気圧発電機をタップして電力を確保しましょう。タップするたびに最大5分間の発電が延長されます。\n\n石炭などの燃料素材を集めることで燃料発電機の建設も可能です。安定した電力供給には燃料発電機の導入がおすすめです。",
       power_tab:"発電",
@@ -2106,6 +2116,8 @@
       warehouse_help_body:"Atom synthesis is now unlocked. You can craft elements from particles. Turn on 'Sell Mode' and tap an element button to convert it into Energy. Energy can be spent on various upgrades once Enhancement Theory is unlocked.",
       storage_theory_help_title:"Enhancement Unlocked",
       storage_theory_help_body:"Spend ⚡ Energy to expand storage caps, purchase auto-producers, and boost per-tap production.\n\nSell elements, molecules, and materials to earn Energy. Start by expanding your caps to store more resources.\n\nAuto-producers require power from generators, which become available after unlocking Power Theory.",
+      astro_theory_help_title:"Solar System Unlocked",
+      astro_theory_help_body:"Solar System construction is now unlocked. Build the sun, planets, and moons in order to complete the solar system.\n\nConstruction requires refined material resources such as iron and silicon.\n\nOnly one celestial body can be built at a time — each material delivery advances the project.\n\nComplete all planets to win the game.",
       power_theory_help_title:"Power Unlocked",
       power_theory_help_body:"Auto-producers require power (MW) to operate. If generation falls below demand, auto-producers will stop.\n\nStart by tapping the Pneumatic Generator to supply power — each tap extends generation by up to 5 minutes.\n\nCollect fuel materials like Coal to build fuel-powered generators for a stable, hands-free power supply.",
       power_tab:"Power",
@@ -2635,12 +2647,12 @@
     { id:"sub_fuel", parentId:"materials_theory", nameKey:"research_node_sub_fuel", unlock:{type:"substanceItem", key:"燃料"}, toastKey:"unlock_toast_substance_item", req:[["e","C",10],["e","H",10]] },
     { id:"sub_semiconductor", parentId:"materials_theory", nameKey:"research_node_sub_semiconductor", unlock:{type:"substanceItem", key:"半導体"}, toastKey:"unlock_toast_substance_item", req:[["e","Si",15],["e","B",5]] },
 
-    { id:"astro_theory", parentId:"materials_theory", nameKey:"research_node_astro", unlock:{type:"flag", key:"solarUnlocked"}, toastKey:"unlock_toast_solar", req:[["s","鋼鉄",10]] }
+    { id:"astro_theory", parentId:"materials_theory", nameKey:"research_node_astro", unlock:{type:"flag", key:"solarUnlocked"}, toastKey:"unlock_toast_solar", showAstroTheoryHelp:true, req:[["s","鋼鉄",10]] }
   ];
 
   const RESEARCH_NODES = RESEARCH_NODES_RAW.map(function(n){
     return {
-      id:n.id, parentId:n.parentId, nameKey:n.nameKey, unlock:n.unlock, toastKey:n.toastKey, showHelp:!!n.showHelp, showStorageTheoryHelp:!!n.showStorageTheoryHelp, showPowerTheoryHelp:!!n.showPowerTheoryHelp,
+      id:n.id, parentId:n.parentId, nameKey:n.nameKey, unlock:n.unlock, toastKey:n.toastKey, showHelp:!!n.showHelp, showStorageTheoryHelp:!!n.showStorageTheoryHelp, showPowerTheoryHelp:!!n.showPowerTheoryHelp, showAstroTheoryHelp:!!n.showAstroTheoryHelp,
       requirements:n.req.map(resolveTriple)
     };
   });
@@ -2826,6 +2838,8 @@
     closeStorageTheoryHelp:document.getElementById("closeStorageTheoryHelp"),
     powerTheoryHelpOverlay:document.getElementById("powerTheoryHelpOverlay"),
     closePowerTheoryHelp:document.getElementById("closePowerTheoryHelp"),
+    astroTheoryHelpOverlay:document.getElementById("astroTheoryHelpOverlay"),
+    closeAstroTheoryHelp:document.getElementById("closeAstroTheoryHelp"),
     closeWarehouseHelp:document.getElementById("closeWarehouseHelp"),
     powerTabBtn:document.getElementById("powerTabBtn"),
     powerOverlay:document.getElementById("powerOverlay"),
@@ -4868,6 +4882,10 @@
         el.powerTheoryHelpOverlay.classList.add("open");
         el.powerTabBtn.classList.add("pulse-attention");
       }
+      if(node.showAstroTheoryHelp){
+        el.astroTheoryHelpOverlay.classList.add("open");
+        el.solarTabBtn.classList.add("pulse-attention");
+      }
     }
     render();
     save();
@@ -5560,6 +5578,12 @@
   el.powerTheoryHelpOverlay.addEventListener("click", (e)=>{
     if(e.target === el.powerTheoryHelpOverlay) el.powerTheoryHelpOverlay.classList.remove("open");
   });
+  el.closeAstroTheoryHelp.addEventListener("click", ()=>{
+    el.astroTheoryHelpOverlay.classList.remove("open");
+  });
+  el.astroTheoryHelpOverlay.addEventListener("click", (e)=>{
+    if(e.target === el.astroTheoryHelpOverlay) el.astroTheoryHelpOverlay.classList.remove("open");
+  });
 
   el.powerTabBtn.addEventListener("click", ()=>{
     el.powerOverlay.classList.add("open");
@@ -5587,6 +5611,7 @@
 
   el.solarTabBtn.addEventListener("click", ()=>{
     el.solarOverlay.classList.add("open");
+    el.solarTabBtn.classList.remove("pulse-attention");
     drawSolarBodyPreview();
   });
   el.closeSolar.addEventListener("click", ()=>{
