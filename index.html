@@ -3302,8 +3302,9 @@
       }
       crafted++;
     }
-    if(crafted === 0) return;
+    if(crafted === 0){ playSE_fail(); return; }
     state.totalTaps++;
+    playSE_success();
     render();
     save();
     const card = document.getElementById("elementCard" + i);
@@ -3934,8 +3935,9 @@
       }
       crafted++;
     }
-    if(crafted === 0) return;
+    if(crafted === 0){ playSE_fail(); return; }
     state.totalTaps++;
+    playSE_success();
     render();
     save();
     const card = document.getElementById("moleculeCard" + j);
@@ -4094,8 +4096,9 @@
       }
       crafted++;
     }
-    if(crafted === 0) return;
+    if(crafted === 0){ playSE_fail(); return; }
     state.totalTaps++;
+    playSE_success();
     render();
     save();
     const card = document.getElementById("substanceCard" + k);
@@ -4951,9 +4954,78 @@
     return false;
   }
 
+  // ── SE (Web Audio API) ──
+  const _AC = window.AudioContext || window.webkitAudioContext;
+  let _audioCtx = null;
+  function _getAC(){
+    if(!_audioCtx) _audioCtx = new _AC();
+    if(_audioCtx.state === 'suspended') _audioCtx.resume();
+    return _audioCtx;
+  }
+
+  // 生成成功SE: シマー (B)
+  function playSE_success(){
+    try{
+      const c = _getAC();
+      const M = c.createGain(); M.gain.value = 0.42; M.connect(c.destination);
+      [[880,0],[882.5,0],[877.5,0],[1760,0.025],[1763,0.025],[1757,0.025]].forEach(function([f,delay],i){
+        const o = c.createOscillator(), g = c.createGain();
+        o.connect(g); g.connect(M); o.type = 'sine'; o.frequency.value = f;
+        const t = c.currentTime + delay;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(i < 3 ? 0.24 : 0.13, t + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.001, t + (i < 3 ? 0.30 : 0.22));
+        o.start(t); o.stop(t + 0.33);
+      });
+    }catch(e){}
+  }
+
+  // 生成失敗SE: ブーッ (C)
+  function playSE_fail(){
+    try{
+      const c = _getAC();
+      const M = c.createGain(); M.gain.value = 0.42; M.connect(c.destination);
+      [[380,175,0],[300,140,0.075]].forEach(function([sf,ef,delay]){
+        const o = c.createOscillator(), g = c.createGain();
+        o.connect(g); g.connect(M); o.type = 'square';
+        const t = c.currentTime + delay;
+        o.frequency.setValueAtTime(sf, t);
+        o.frequency.exponentialRampToValueAtTime(ef, t + 0.085);
+        g.gain.setValueAtTime(0.35, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
+        o.start(t); o.stop(t + 0.13);
+      });
+    }catch(e){}
+  }
+
+  // 研究解放SE: クリスタルチャイム (B)
+  function playSE_unlock(){
+    try{
+      const c = _getAC();
+      const M = c.createGain(); M.gain.value = 0.46; M.connect(c.destination);
+      [[880,0],[1108,0.07],[1318,0.14],[1760,0.21],[2093,0.30],[1760,0.38],[2637,0.46]].forEach(function([f,delay]){
+        const t = c.currentTime + delay;
+        const decay = 0.48 + (f / 2637) * 0.32;
+        const o = c.createOscillator(), g = c.createGain();
+        o.connect(g); g.connect(M); o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.30, t + 0.003);
+        g.gain.exponentialRampToValueAtTime(0.001, t + decay);
+        o.start(t); o.stop(t + decay + 0.04);
+        const o2 = c.createOscillator(), g2 = c.createGain();
+        o2.connect(g2); g2.connect(M); o2.type = 'sine'; o2.frequency.value = f * 2.756;
+        g2.gain.setValueAtTime(0, t);
+        g2.gain.linearRampToValueAtTime(0.075, t + 0.003);
+        g2.gain.exponentialRampToValueAtTime(0.001, t + decay * 0.38);
+        o2.start(t); o2.stop(t + decay * 0.38 + 0.04);
+      });
+    }catch(e){}
+  }
+
   function tapProton(e){
     if(!tryProduceParticle("proton", true)) return;
     state.totalTaps++;
+    playSE_success();
     render();
     save();
     flashBox(el.protonBtn, "flash");
@@ -4963,6 +5035,7 @@
   function tapElectron(e){
     if(!tryProduceParticle("electron", true)) return;
     state.totalTaps++;
+    playSE_success();
     render();
     save();
     flashBox(el.electronBtn, "flash");
@@ -4972,6 +5045,7 @@
   function tapNeutron(e){
     if(!tryProduceParticle("neutron", true)) return;
     state.totalTaps++;
+    playSE_success();
     render();
     save();
     flashBox(el.neutronBtn, "flash");
@@ -5076,6 +5150,7 @@
     if(nodeComplete){
       applyResearchNodeUnlock(nodeIndex);
       showResearchNodeToast(node);
+      playSE_unlock();
       if(node.showHelp) el.warehouseHelpOverlay.classList.add("open");
       if(node.showStorageTheoryHelp){
         el.storageTheoryHelpOverlay.classList.add("open");
