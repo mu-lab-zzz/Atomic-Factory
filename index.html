@@ -1282,6 +1282,55 @@
   @media(prefers-reduced-motion:reduce){
     .float-ep,.unlock-ripple,.unlock-flash,.el-craft-ring{animation:none!important;}
   }
+
+  /* ===== クリア画面 ===== */
+  #clearOverlay{
+    position:fixed; inset:0;
+    background:rgba(2,1,10,0.97);
+    display:none; flex-direction:column;
+    align-items:center; justify-content:center;
+    z-index:9000; padding:24px 20px; text-align:center; gap:10px;
+  }
+  #clearOverlay.open{ display:flex; }
+  .clear-title{
+    font-size:22px; font-weight:700; color:#EAD8FF;
+    letter-spacing:0.08em;
+  }
+  .clear-subtitle{
+    font-size:11px; color:rgba(175,150,240,0.6); letter-spacing:0.04em; margin-top:-4px;
+  }
+  #clearSolarCanvas{
+    width:min(260px,100%); height:auto; aspect-ratio:1;
+    border-radius:50%; border:1px solid rgba(110,80,200,0.35);
+    box-shadow:0 0 32px rgba(80,50,190,0.30), 0 0 80px rgba(50,30,130,0.18);
+  }
+  .clear-flavor{
+    color:rgba(210,185,255,0.82); font-size:13px; line-height:1.8;
+    max-width:280px;
+  }
+  .clear-stats{
+    background:rgba(55,35,110,0.22); border:1px solid rgba(110,80,200,0.28);
+    border-radius:10px; padding:10px 18px; width:100%; max-width:280px;
+  }
+  .clear-stat-row{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding:4px 0; font-size:12px; color:rgba(200,175,255,0.75);
+  }
+  .clear-stat-row+.clear-stat-row{ border-top:1px solid rgba(110,80,200,0.18); }
+  .clear-stat-val{ font-family:var(--font-display); color:#C8AAFF; font-size:13px; }
+  .clear-galaxy-btn{
+    background:linear-gradient(135deg,rgba(85,45,200,0.55),rgba(55,30,155,0.55));
+    border:1px solid rgba(160,120,255,0.5); color:#D6BEFF;
+    border-radius:12px; padding:13px 0; font-size:15px; font-weight:700;
+    letter-spacing:0.07em; cursor:pointer; width:100%; max-width:280px;
+    transition:background 0.18s;
+  }
+  .clear-galaxy-btn:active{ background:rgba(100,60,220,0.7); }
+  .clear-reset-btn{
+    background:transparent; border:none;
+    color:rgba(150,130,185,0.45); font-size:12px; cursor:pointer; padding:2px;
+    letter-spacing:0.03em;
+  }
 </style>
 </head>
 <body>
@@ -1636,6 +1685,25 @@
   </div>
 </div>
 
+<div id="clearOverlay">
+  <div class="clear-title" data-i18n="clear_title">太陽系完成</div>
+  <div class="clear-subtitle" data-i18n="clear_subtitle">SOLAR SYSTEM COMPLETE</div>
+  <canvas id="clearSolarCanvas" width="280" height="280"></canvas>
+  <p class="clear-flavor" data-i18n="clear_flavor">原子ひとつひとつを積み上げ、<br>ついに太陽系を完成させた。</p>
+  <div class="clear-stats">
+    <div class="clear-stat-row">
+      <span data-i18n="clear_playtime_label">プレイ時間</span>
+      <span id="clearPlaytime" class="clear-stat-val display-font">--:--:--</span>
+    </div>
+    <div class="clear-stat-row">
+      <span data-i18n="clear_taps_label">総タップ数</span>
+      <span id="clearTaps" class="clear-stat-val display-font">0</span>
+    </div>
+  </div>
+  <button class="clear-galaxy-btn" id="clearGalaxyBtn" data-i18n="clear_galaxy_btn">銀河へ →</button>
+  <button class="clear-reset-btn" id="clearResetBtn" data-i18n="clear_reset_btn">最初から</button>
+</div>
+
 <div class="reward-ad-offer" id="rewardAdOffer" style="display:none;">
   <div class="reward-ad-text" id="rewardAdOfferText"></div>
   <div class="reward-ad-actions">
@@ -1957,6 +2025,13 @@
       storage_theory_help_body:"⚡エネルギーを使って、各素材の貯蔵上限の拡張・自動生産機の購入・タップ時の生産個数の強化ができます。\n\nエネルギーは元素・分子・物質を「売却」することで獲得できます。まずは上限を拡張して、より多くの素材を貯めましょう。\n\n自動生産機の稼働には動力理論解放で生産が可能になる発電施設が必要となります。",
       astro_theory_help_title:"「太陽系」が解放されました",
       astro_theory_help_body:"太陽系構築が解放されました。恒星・惑星・衛星を順番に建設し、太陽系を完成させましょう。\n\n建設には鉄・ケイ素などの精錬された物質素材が必要です。\n\n一度に建設できる天体は一つだけで、素材を納入するたびに工事が進捗します。\n\nすべての惑星を完成させるとゲームクリアです。",
+      clear_title:"太陽系完成",
+      clear_subtitle:"SOLAR SYSTEM COMPLETE",
+      clear_flavor:"原子ひとつひとつを積み上げ、\nついに太陽系を完成させた。",
+      clear_playtime_label:"プレイ時間",
+      clear_taps_label:"総タップ数",
+      clear_galaxy_btn:"銀河へ →",
+      clear_reset_btn:"最初から",
       power_theory_help_title:"「発電」が解放されました",
       power_theory_help_body:"自動生産機の稼働には電力（MW）が必要です。発電量が消費電力を下回ると自動生産機が停止します。\n\nまずは空気圧発電機をタップして電力を確保しましょう。タップするたびに最大5分間の発電が延長されます。\n\n石炭などの燃料素材を集めることで燃料発電機の建設も可能です。安定した電力供給には燃料発電機の導入がおすすめです。",
       power_tab:"発電",
@@ -2118,6 +2193,13 @@
       storage_theory_help_body:"Spend ⚡ Energy to expand storage caps, purchase auto-producers, and boost per-tap production.\n\nSell elements, molecules, and materials to earn Energy. Start by expanding your caps to store more resources.\n\nAuto-producers require power from generators, which become available after unlocking Power Theory.",
       astro_theory_help_title:"Solar System Unlocked",
       astro_theory_help_body:"Solar System construction is now unlocked. Build the sun, planets, and moons in order to complete the solar system.\n\nConstruction requires refined material resources such as iron and silicon.\n\nOnly one celestial body can be built at a time — each material delivery advances the project.\n\nComplete all planets to win the game.",
+      clear_title:"Solar System Complete",
+      clear_subtitle:"GAME CLEAR",
+      clear_flavor:"Atom by atom, you built an entire solar system.",
+      clear_playtime_label:"Play Time",
+      clear_taps_label:"Total Taps",
+      clear_galaxy_btn:"To the Galaxy →",
+      clear_reset_btn:"Play Again",
       power_theory_help_title:"Power Unlocked",
       power_theory_help_body:"Auto-producers require power (MW) to operate. If generation falls below demand, auto-producers will stop.\n\nStart by tapping the Pneumatic Generator to supply power — each tap extends generation by up to 5 minutes.\n\nCollect fuel materials like Coal to build fuel-powered generators for a stable, hands-free power supply.",
       power_tab:"Power",
@@ -2793,7 +2875,9 @@
     transportSlots:TRANSPORT_SLOTS_BASE,
     transportQueueCap:QUEUE_SLOT_CAPACITY,
     transportQueue:new Array(TRANSPORT_SLOTS_BASE).fill(null).map(function(){ return { reqIndex:null, remaining:0 }; }),
-    lang:"ja"
+    lang:"ja",
+    gameStartedAt:Date.now(),
+    totalTaps:0
   };
 
   let debugMode = false; // デバッグモード: ONの間は全ての消費・上限チェックをバイパスする（保存不要のUI状態）
@@ -2840,6 +2924,12 @@
     closePowerTheoryHelp:document.getElementById("closePowerTheoryHelp"),
     astroTheoryHelpOverlay:document.getElementById("astroTheoryHelpOverlay"),
     closeAstroTheoryHelp:document.getElementById("closeAstroTheoryHelp"),
+    clearOverlay:document.getElementById("clearOverlay"),
+    clearSolarCanvas:document.getElementById("clearSolarCanvas"),
+    clearPlaytime:document.getElementById("clearPlaytime"),
+    clearTaps:document.getElementById("clearTaps"),
+    clearGalaxyBtn:document.getElementById("clearGalaxyBtn"),
+    clearResetBtn:document.getElementById("clearResetBtn"),
     closeWarehouseHelp:document.getElementById("closeWarehouseHelp"),
     powerTabBtn:document.getElementById("powerTabBtn"),
     powerOverlay:document.getElementById("powerOverlay"),
@@ -3213,6 +3303,7 @@
       crafted++;
     }
     if(crafted === 0) return;
+    state.totalTaps++;
     render();
     save();
     const card = document.getElementById("elementCard" + i);
@@ -3844,6 +3935,7 @@
       crafted++;
     }
     if(crafted === 0) return;
+    state.totalTaps++;
     render();
     save();
     const card = document.getElementById("moleculeCard" + j);
@@ -4003,6 +4095,7 @@
       crafted++;
     }
     if(crafted === 0) return;
+    state.totalTaps++;
     render();
     save();
     const card = document.getElementById("substanceCard" + k);
@@ -4231,10 +4324,10 @@
         state.currentBodyIndex += 1;
         state.currentBodyProgress = new Array(CELESTIAL_BODIES[state.currentBodyIndex].requirements.length).fill(0);
       } else {
-        // 太陽系完成 → 銀河生成モードへ移行（意図的にクリアさせないエンドコンテンツ）
-        showUnlockToastText(dict.all_bodies_complete_toast);
+        // 太陽系完成 → クリア画面を表示してから銀河生成モードへ
         state.buildMode = "galaxy";
         state.galaxyProgress = new Array(GALAXY_REQUIREMENTS.length).fill(0);
+        showClearScreen();
       }
       drawSolarBodyPreview();
     } else {
@@ -4429,6 +4522,113 @@
 
     const complete = requirements.every(function(input, idx){ return progress[idx] >= input.count; });
     if(complete) advanceToNextBody();
+  }
+
+  // ── クリア画面アニメーション ──
+  const CLEAR_ORBITS = [
+    { orbitR:28,  bodyR:3.0, color:[175,170,165], speed:0.28,  phase:0.7,  saturn:false },
+    { orbitR:40,  bodyR:4.2, color:[228,208,155], speed:0.19,  phase:1.2,  saturn:false },
+    { orbitR:53,  bodyR:4.5, color:[65,125,205],  speed:0.15,  phase:2.1,  saturn:false },
+    { orbitR:66,  bodyR:3.5, color:[200,75,45],   speed:0.12,  phase:0.3,  saturn:false },
+    { orbitR:80,  bodyR:7.5, color:[205,165,115], speed:0.09,  phase:1.7,  saturn:false },
+    { orbitR:96,  bodyR:6.2, color:[218,196,136], speed:0.07,  phase:0.9,  saturn:true  },
+    { orbitR:110, bodyR:5.0, color:[125,208,218], speed:0.055, phase:2.5,  saturn:false },
+    { orbitR:122, bodyR:4.8, color:[55,75,215],   speed:0.044, phase:1.4,  saturn:false },
+    { orbitR:132, bodyR:2.8, color:[178,158,148], speed:0.034, phase:0.0,  saturn:false },
+  ];
+  let clearAnimFrame = null;
+  let clearAnimT0 = null;
+
+  function _drawClearBody(g, x, y, r, rgb){
+    var cr=rgb[0], cg=rgb[1], cb=rgb[2];
+    var grad = g.createRadialGradient(x-r*0.33, y-r*0.33, 0, x, y, r);
+    grad.addColorStop(0, "rgb("+Math.min(255,cr+75)+","+Math.min(255,cg+75)+","+Math.min(255,cb+75)+")");
+    grad.addColorStop(0.6, "rgb("+cr+","+cg+","+cb+")");
+    grad.addColorStop(1,   "rgb("+Math.max(0,cr-65)+","+Math.max(0,cg-65)+","+Math.max(0,cb-65)+")");
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI*2);
+    g.fillStyle = grad; g.fill();
+  }
+
+  function animateClearCanvas(ts){
+    if(!clearAnimT0) clearAnimT0 = ts;
+    var t = (ts - clearAnimT0) * 0.001;
+    var cv = el.clearSolarCanvas;
+    if(!cv || !document.getElementById("clearOverlay").classList.contains("open")) return;
+    var g = cv.getContext("2d");
+    var W = cv.width, H = cv.height, cx = W/2, cy = H/2;
+    g.clearRect(0, 0, W, H);
+
+    // Background
+    g.fillStyle = "#020108"; g.fillRect(0, 0, W, H);
+
+    // Stars
+    for(var s = 0; s < 55; s++){
+      var sx = (Math.sin(s * 2.399) * 0.5 + 0.5) * W;
+      var sy = (Math.cos(s * 1.618) * 0.5 + 0.5) * H;
+      var sr = 0.3 + (Math.sin(s * 7.3) * 0.5 + 0.5) * 1.0;
+      var sa = 0.15 + (Math.sin(s * 3.7 + t * 0.5) * 0.5 + 0.5) * 0.45;
+      g.beginPath(); g.arc(sx, sy, sr, 0, Math.PI*2);
+      g.fillStyle = "rgba(200,188,255,"+sa.toFixed(2)+")"; g.fill();
+    }
+
+    // Orbit circles
+    CLEAR_ORBITS.forEach(function(o){
+      g.beginPath(); g.arc(cx, cy, o.orbitR, 0, Math.PI*2);
+      g.strokeStyle = "rgba(100,75,185,0.18)"; g.lineWidth = 1; g.stroke();
+    });
+
+    // Sun glow
+    var sunG = g.createRadialGradient(cx, cy, 0, cx, cy, 20);
+    sunG.addColorStop(0,   "rgba(255,245,140,1)");
+    sunG.addColorStop(0.45,"rgba(255,185,40,0.85)");
+    sunG.addColorStop(0.8, "rgba(255,120,0,0.3)");
+    sunG.addColorStop(1,   "rgba(255,80,0,0)");
+    g.beginPath(); g.arc(cx, cy, 20, 0, Math.PI*2);
+    g.fillStyle = sunG; g.fill();
+
+    // Saturn ring back half — draw before body
+    var saturnOrb = CLEAR_ORBITS[5];
+    var satA = saturnOrb.phase + t * saturnOrb.speed;
+    var satBx = cx + Math.cos(satA) * saturnOrb.orbitR;
+    var satBy = cy + Math.sin(satA) * saturnOrb.orbitR;
+    g.save(); g.translate(satBx, satBy); g.rotate(0.35); g.scale(1, 0.32);
+    g.beginPath(); g.arc(0, 0, saturnOrb.bodyR * 2.1, Math.PI, Math.PI*2);
+    g.strokeStyle = "rgba(218,194,130,0.45)"; g.lineWidth = 2.2 / 0.32; g.stroke();
+    g.restore();
+
+    // Planets
+    CLEAR_ORBITS.forEach(function(o){
+      var angle = o.phase + t * o.speed;
+      var bx = cx + Math.cos(angle) * o.orbitR;
+      var by = cy + Math.sin(angle) * o.orbitR;
+      _drawClearBody(g, bx, by, o.bodyR, o.color);
+    });
+
+    // Saturn ring front half — draw over body
+    g.save(); g.translate(satBx, satBy); g.rotate(0.35); g.scale(1, 0.32);
+    g.beginPath(); g.arc(0, 0, saturnOrb.bodyR * 2.1, 0, Math.PI);
+    g.strokeStyle = "rgba(218,194,130,0.65)"; g.lineWidth = 2.2 / 0.32; g.stroke();
+    g.restore();
+
+    clearAnimFrame = requestAnimationFrame(animateClearCanvas);
+  }
+
+  function formatPlayTime(ms){
+    var s = Math.floor(ms / 1000);
+    var h = Math.floor(s / 3600);
+    var m = Math.floor((s % 3600) / 60);
+    var ss = s % 60;
+    return h + ":" + String(m).padStart(2,"0") + ":" + String(ss).padStart(2,"0");
+  }
+
+  function showClearScreen(){
+    if(clearAnimFrame){ cancelAnimationFrame(clearAnimFrame); clearAnimFrame = null; }
+    clearAnimT0 = null;
+    el.clearPlaytime.textContent = formatPlayTime(Date.now() - state.gameStartedAt);
+    el.clearTaps.textContent = state.totalTaps.toLocaleString();
+    applyLanguage();
+    el.clearOverlay.classList.add("open");
+    clearAnimFrame = requestAnimationFrame(animateClearCanvas);
   }
 
   // ── 太陽系天体LCDプレビュー ──
@@ -4753,6 +4953,7 @@
 
   function tapProton(e){
     if(!tryProduceParticle("proton", true)) return;
+    state.totalTaps++;
     render();
     save();
     flashBox(el.protonBtn, "flash");
@@ -4761,6 +4962,7 @@
 
   function tapElectron(e){
     if(!tryProduceParticle("electron", true)) return;
+    state.totalTaps++;
     render();
     save();
     flashBox(el.electronBtn, "flash");
@@ -4769,6 +4971,7 @@
 
   function tapNeutron(e){
     if(!tryProduceParticle("neutron", true)) return;
+    state.totalTaps++;
     render();
     save();
     flashBox(el.neutronBtn, "flash");
@@ -5108,6 +5311,8 @@
   }
 
   function sanitizeState(){
+    if(typeof state.gameStartedAt !== "number" || state.gameStartedAt <= 0){ state.gameStartedAt = Date.now(); }
+    if(typeof state.totalTaps !== "number" || state.totalTaps < 0){ state.totalTaps = 0; }
     if(typeof state.tutorialStepIndex !== "number" || state.tutorialStepIndex < 0){
       state.tutorialStepIndex = 0;
     }
@@ -5437,7 +5642,9 @@
       transportSlots:TRANSPORT_SLOTS_BASE,
       transportQueueCap:QUEUE_SLOT_CAPACITY,
       transportQueue:new Array(TRANSPORT_SLOTS_BASE).fill(null).map(function(){ return { reqIndex:null, remaining:0 }; }),
-      lang:state.lang
+      lang:state.lang,
+      gameStartedAt:Date.now(),
+      totalTaps:0
     };
     el.sellOverlay.classList.remove("open");
     el.elementsGrid.innerHTML = "";
@@ -5583,6 +5790,16 @@
   });
   el.astroTheoryHelpOverlay.addEventListener("click", (e)=>{
     if(e.target === el.astroTheoryHelpOverlay) el.astroTheoryHelpOverlay.classList.remove("open");
+  });
+  el.clearGalaxyBtn.addEventListener("click", ()=>{
+    el.clearOverlay.classList.remove("open");
+    if(clearAnimFrame){ cancelAnimationFrame(clearAnimFrame); clearAnimFrame = null; }
+    render();
+  });
+  el.clearResetBtn.addEventListener("click", ()=>{
+    el.clearOverlay.classList.remove("open");
+    if(clearAnimFrame){ cancelAnimationFrame(clearAnimFrame); clearAnimFrame = null; }
+    resetSave();
   });
 
   el.powerTabBtn.addEventListener("click", ()=>{
