@@ -1341,7 +1341,7 @@
     <div class="header-row-ctrl">
       <span class="energy-badge display-font" id="energyBadge">⚡0</span>
       <div class="header-ctrl-icons">
-        <button class="icon-btn" id="bgmBtn" onclick="toggleBGM()">🔊</button>
+        <button class="icon-btn" id="bgmBtn">🔊</button>
         <button class="icon-btn" id="saveBtn">💾</button>
         <button class="icon-btn" id="settingsBtn">⚙</button>
       </div>
@@ -2965,6 +2965,8 @@
     transportQueueCapValue:document.getElementById("transportQueueCapValue"),
     transportQueueCapBtn:document.getElementById("transportQueueCapBtn"),
     transportQueueList:document.getElementById("transportQueueList"),
+    bgmBtn:document.getElementById("bgmBtn"),
+    bgmAudio:document.getElementById("bgmAudio"),
     saveBtn:document.getElementById("saveBtn"),
     settingsBtn:document.getElementById("settingsBtn"),
     settingsTitle:document.getElementById("settingsTitle"),
@@ -5035,29 +5037,26 @@
   }
 
   // BGM
-  let _bgmAudio = null;
   let _bgmMuted = false;
   let _bgmStarted = false;
   function _initBGM(){
     if(_bgmStarted) return;
     _bgmStarted = true;
-    _bgmAudio = document.getElementById("bgmAudio");
-    _bgmAudio.src = "data:audio/mpeg;base64," + _BGM_B64;
-    _bgmAudio.volume = 0.35;
-    if(!_bgmMuted) _bgmAudio.play().catch(function(){});
+    el.bgmAudio.src = "data:audio/mpeg;base64," + _BGM_B64;
+    el.bgmAudio.volume = 0.35;
+    if(!_bgmMuted) el.bgmAudio.play().catch(function(){});
     _updateBGMBtn();
   }
-  function toggleBGM(){
+  function _toggleBGM(){
     _bgmMuted = !_bgmMuted;
-    if(_bgmAudio){
-      if(_bgmMuted){ _bgmAudio.pause(); }
-      else { _bgmAudio.play().catch(function(){}); }
+    if(_bgmStarted){
+      if(_bgmMuted){ el.bgmAudio.pause(); }
+      else { el.bgmAudio.play().catch(function(){}); }
     }
     _updateBGMBtn();
   }
   function _updateBGMBtn(){
-    var btn = document.getElementById("bgmBtn");
-    if(btn) btn.textContent = _bgmMuted ? "🔇" : "🔊";
+    if(el.bgmBtn) el.bgmBtn.textContent = _bgmMuted ? "🔇" : "🔊";
   }
 
   function tapProton(e){
@@ -5815,6 +5814,7 @@
   el.tapPowerBtnMolecule.addEventListener("click", ()=>buyCraftTapPower("molecule"));
   el.tapPowerBtnSubstance.addEventListener("click", ()=>buyCraftTapPower("substance"));
 
+  el.bgmBtn.addEventListener("click", ()=>{ _toggleBGM(); });
   el.saveBtn.addEventListener("click", async ()=>{
     await save();
     const dict = STRINGS[state.lang];
