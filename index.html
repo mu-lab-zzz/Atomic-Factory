@@ -1617,6 +1617,14 @@
     <button class="modal-close" id="closeStorageTheoryHelp" data-i18n="close_btn">閉じる</button>
   </div>
 </div>
+
+<div class="modal-overlay" id="powerTheoryHelpOverlay">
+  <div class="modal">
+    <h2 data-i18n="power_theory_help_title">「発電」が解放されました</h2>
+    <p class="help-text" data-i18n="power_theory_help_body">自動生産機の稼働には電力（MW）が必要です。発電量が消費電力を下回ると自動生産機が停止します。<br><br>まずは空気圧発電機をタップして電力を確保しましょう。タップするたびに最大5分間の発電が延長されます。<br><br>石炭などの燃料素材を集めることで燃料発電機の建設も可能です。安定した電力供給には燃料発電機の導入がおすすめです。</p>
+    <button class="modal-close" id="closePowerTheoryHelp" data-i18n="close_btn">閉じる</button>
+  </div>
+</div>
   </div>
 </div>
 
@@ -1939,6 +1947,8 @@
       warehouse_help_body:"元素合成が解放されました。素粒子から元素をクラフトできます。元素は『売却モード』ボタンをオンにして元素ボタンをタップするとエネルギーに変換できます。エネルギーは『強化理論解放後』に各種アップグレードに使用できます。",
       storage_theory_help_title:"「強化」が解放されました",
       storage_theory_help_body:"⚡エネルギーを使って、各素材の貯蔵上限の拡張・自動生産機の購入・タップ時の生産個数の強化ができます。\n\nエネルギーは元素・分子・物質を「売却」することで獲得できます。まずは上限を拡張して、より多くの素材を貯めましょう。\n\n自動生産機の稼働には動力理論解放で生産が可能になる発電施設が必要となります。",
+      power_theory_help_title:"「発電」が解放されました",
+      power_theory_help_body:"自動生産機の稼働には電力（MW）が必要です。発電量が消費電力を下回ると自動生産機が停止します。\n\nまずは空気圧発電機をタップして電力を確保しましょう。タップするたびに最大5分間の発電が延長されます。\n\n石炭などの燃料素材を集めることで燃料発電機の建設も可能です。安定した電力供給には燃料発電機の導入がおすすめです。",
       power_tab:"発電",
       power_title:"発電",
       power_generation_label:"発電量",
@@ -2096,6 +2106,8 @@
       warehouse_help_body:"Atom synthesis is now unlocked. You can craft elements from particles. Turn on 'Sell Mode' and tap an element button to convert it into Energy. Energy can be spent on various upgrades once Enhancement Theory is unlocked.",
       storage_theory_help_title:"Enhancement Unlocked",
       storage_theory_help_body:"Spend ⚡ Energy to expand storage caps, purchase auto-producers, and boost per-tap production.\n\nSell elements, molecules, and materials to earn Energy. Start by expanding your caps to store more resources.\n\nAuto-producers require power from generators, which become available after unlocking Power Theory.",
+      power_theory_help_title:"Power Unlocked",
+      power_theory_help_body:"Auto-producers require power (MW) to operate. If generation falls below demand, auto-producers will stop.\n\nStart by tapping the Pneumatic Generator to supply power — each tap extends generation by up to 5 minutes.\n\nCollect fuel materials like Coal to build fuel-powered generators for a stable, hands-free power supply.",
       power_tab:"Power",
       power_title:"Power",
       power_generation_label:"Generation",
@@ -2596,7 +2608,7 @@
 
     // 枝1: 貯蔵・動力・発電機チェーン
     { id:"storage_theory", parentId:"synthesis_theory", nameKey:"research_node_storage", unlock:{type:"flag", key:"warehouseUnlocked"}, toastKey:"unlock_toast_warehouse", showStorageTheoryHelp:true, req:[["e","He",10]] },
-    { id:"power_theory", parentId:"storage_theory", nameKey:"research_node_power", unlock:{type:"flag", key:"powerUnlocked"}, toastKey:"unlock_toast_power", req:[["e","Fe",20],["e","Cu",10]] },
+    { id:"power_theory", parentId:"storage_theory", nameKey:"research_node_power", unlock:{type:"flag", key:"powerUnlocked"}, toastKey:"unlock_toast_power", showPowerTheoryHelp:true, req:[["e","Fe",20],["e","Cu",10]] },
     { id:"gen_coal_theory", parentId:"power_theory", nameKey:"research_node_gen_coal", unlock:{type:"generatorType", key:"coal"}, toastKey:"unlock_toast_gen_coal", req:[["e","C",20]] },
     { id:"gen_oil_theory", parentId:"gen_coal_theory", nameKey:"research_node_gen_oil", unlock:{type:"generatorType", key:"oil"}, toastKey:"unlock_toast_gen_oil", req:[["e","C",10],["e","H",10]] },
     { id:"gen_solar_theory", parentId:"gen_oil_theory", nameKey:"research_node_gen_solar", unlock:{type:"generatorType", key:"solar"}, toastKey:"unlock_toast_gen_solar", req:[["e","Si",15]] },
@@ -2628,7 +2640,7 @@
 
   const RESEARCH_NODES = RESEARCH_NODES_RAW.map(function(n){
     return {
-      id:n.id, parentId:n.parentId, nameKey:n.nameKey, unlock:n.unlock, toastKey:n.toastKey, showHelp:!!n.showHelp, showStorageTheoryHelp:!!n.showStorageTheoryHelp,
+      id:n.id, parentId:n.parentId, nameKey:n.nameKey, unlock:n.unlock, toastKey:n.toastKey, showHelp:!!n.showHelp, showStorageTheoryHelp:!!n.showStorageTheoryHelp, showPowerTheoryHelp:!!n.showPowerTheoryHelp,
       requirements:n.req.map(resolveTriple)
     };
   });
@@ -2812,6 +2824,8 @@
     warehouseHelpOverlay:document.getElementById("warehouseHelpOverlay"),
     storageTheoryHelpOverlay:document.getElementById("storageTheoryHelpOverlay"),
     closeStorageTheoryHelp:document.getElementById("closeStorageTheoryHelp"),
+    powerTheoryHelpOverlay:document.getElementById("powerTheoryHelpOverlay"),
+    closePowerTheoryHelp:document.getElementById("closePowerTheoryHelp"),
     closeWarehouseHelp:document.getElementById("closeWarehouseHelp"),
     powerTabBtn:document.getElementById("powerTabBtn"),
     powerOverlay:document.getElementById("powerOverlay"),
@@ -4850,6 +4864,10 @@
         el.storageTheoryHelpOverlay.classList.add("open");
         el.warehouseTabBtn.classList.add("pulse-attention");
       }
+      if(node.showPowerTheoryHelp){
+        el.powerTheoryHelpOverlay.classList.add("open");
+        el.powerTabBtn.classList.add("pulse-attention");
+      }
     }
     render();
     save();
@@ -5536,9 +5554,16 @@
   el.storageTheoryHelpOverlay.addEventListener("click", (e)=>{
     if(e.target === el.storageTheoryHelpOverlay) el.storageTheoryHelpOverlay.classList.remove("open");
   });
+  el.closePowerTheoryHelp.addEventListener("click", ()=>{
+    el.powerTheoryHelpOverlay.classList.remove("open");
+  });
+  el.powerTheoryHelpOverlay.addEventListener("click", (e)=>{
+    if(e.target === el.powerTheoryHelpOverlay) el.powerTheoryHelpOverlay.classList.remove("open");
+  });
 
   el.powerTabBtn.addEventListener("click", ()=>{
     el.powerOverlay.classList.add("open");
+    el.powerTabBtn.classList.remove("pulse-attention");
   });
   el.closePower.addEventListener("click", ()=>{
     el.powerOverlay.classList.remove("open");
