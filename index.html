@@ -3495,8 +3495,7 @@
   const TAP_POWER_STEP = 0.1; // 1レベルあたりのタップ生産量増加
 
   function tapPowerCost(key){
-    const level = state.tapPowerLevel[key] || 0;
-    return Math.round(TAP_POWER_BASE_COST * Math.pow(TAP_POWER_GROWTH, level));
+    return 50;
   }
 
   function craftTapPowerCost(key){
