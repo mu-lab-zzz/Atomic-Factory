@@ -5131,6 +5131,11 @@
   function _updateBGMBtn(){
     if(el.bgmBtn) el.bgmBtn.textContent = _bgmMuted ? "🔇" : "🔊";
   }
+  document.addEventListener("visibilitychange", function(){
+    if(!_bgmStarted) return;
+    if(document.hidden){ el.bgmAudio.pause(); }
+    else if(!_bgmMuted){ el.bgmAudio.play().catch(function(){}); }
+  });
 
   function tapProton(e){
     _initBGM();
