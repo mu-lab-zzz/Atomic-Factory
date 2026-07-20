@@ -3425,6 +3425,7 @@
 
   // ============ インベントリ上限拡張 ============
   function capExpandCost(key){
+    if(key === "proton" || key === "electron" || key === "neutron") return 50;
     const config = CAP_CONFIGS[key];
     const level = state[key + "CapLevel"];
     return Math.round(config.baseCost * Math.pow(config.growth, level));
