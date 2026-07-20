@@ -2711,7 +2711,14 @@
   const TRANSPORT_QUEUE_CAP_CONFIG = { baseCost:150, growth:1.8 };
 
   // ============ リワード広告（モック） ============
-  const REWARD_AD_AMOUNT = { element:50, molecule:20, substance:5 }; // 視聴で獲得できる個数（種別ごと）
+  const REWARD_AD_AMOUNT = { molecule:20, substance:5 }; // 視聴で獲得できる個数（元素以外）
+  function getRewardAdAmount(kind, index){
+    if(kind === "element"){
+      // 水素(0)=50 → 最終元素(117)=5 の線形減少
+      return Math.round(50 - 45 * index / (ELEMENT_TABLE.length - 1));
+    }
+    return REWARD_AD_AMOUNT[kind];
+  }
   const REWARD_AD_COOLDOWN_SECONDS = 180; // 1回視聴したら次に出せるまでの時間
   const REWARD_AD_PLAY_SECONDS = 5; // モック広告の再生時間
   const GENERATOR_BUFF_MULTIPLIER = 3; // 稼働時間/発電量の倍率
@@ -4435,7 +4442,7 @@
     pendingRewardAdTriggerEl = triggerEl || null;
     const dict = STRINGS[state.lang];
     const name = rewardTargetLabel(pendingRewardAdTarget);
-    el.rewardAdOfferText.textContent = dict.reward_ad_offer_text.replace(/{name}/g, name).replace("{amount}", REWARD_AD_AMOUNT[kind]);
+    el.rewardAdOfferText.textContent = dict.reward_ad_offer_text.replace(/{name}/g, name).replace("{amount}", getRewardAdAmount(kind, index));
     el.rewardAdWatchBtn.textContent = dict.reward_ad_watch_btn;
     el.rewardAdOffer.style.display = "block";
     if(rewardAdOfferTimer) clearTimeout(rewardAdOfferTimer);
@@ -4482,7 +4489,7 @@
     const stock = target.kind === "element" ? state.elementCounts
       : target.kind === "molecule" ? state.moleculeCounts
       : state.substanceCounts;
-    const adAmount = REWARD_AD_AMOUNT[target.kind];
+    const adAmount = getRewardAdAmount(target.kind, target.index);
     stock[target.index] += adAmount;
     state.rewardAdCooldownRemaining = REWARD_AD_COOLDOWN_SECONDS;
     showUnlockToastText(dict.reward_ad_granted_text.replace(/{name}/g, rewardTargetLabel(target)).replace("{amount}", adAmount));
